@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Copy of Tus Curvas Lindas - Delivery",
+  "description": "Aplicación profesional de delivery de moda con panel de administración completo.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
