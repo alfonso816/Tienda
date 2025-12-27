@@ -1,7 +1,7 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
 
-const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+const getAI = () => new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
 
 export const getMarketInsights = async (query: string): Promise<{ text: string; sources: any[] }> => {
   const ai = getAI();
