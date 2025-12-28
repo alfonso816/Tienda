@@ -56,7 +56,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 // --- Subcomponentes ---
 
-const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) => void }> = ({ product, onAdd }) => {
+const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) => void, primaryColor: string }> = ({ product, onAdd, primaryColor }) => {
   const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || 'Única');
 
   return (
@@ -67,13 +67,13 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
         ) : (
           <video src={product.mediaUrl} className="w-full h-full object-cover" muted autoPlay loop />
         )}
-        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-2 py-1 rounded-lg text-[10px] font-bold text-pink-600 shadow-sm">
+        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm" style={{ color: primaryColor }}>
           NUEVO
         </div>
       </div>
       <div className="p-4 flex flex-col flex-1">
         <h3 className="font-bold text-gray-800 mb-1 line-clamp-1">{product.name}</h3>
-        <p className="text-gray-400 text-[11px] mb-3 line-clamp-2 leading-tight">{product.description}</p>
+        <p className="text-gray-400 text-[11px] mb-3 line-clamp-2 leading-tight h-8">{product.description}</p>
         
         <div className="mt-auto">
           <div className="mb-4">
@@ -83,17 +83,19 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
                 <button 
                   key={s} 
                   onClick={() => setSelectedSize(s)}
-                  className={`text-[10px] min-w-[32px] h-8 flex items-center justify-center border rounded-lg font-medium transition-colors ${selectedSize === s ? 'bg-pink-600 border-pink-600 text-white' : 'border-gray-200 text-gray-500 hover:border-pink-300 bg-white'}`}
+                  className={`text-[10px] min-w-[32px] h-8 flex items-center justify-center border rounded-lg font-medium transition-colors ${selectedSize === s ? 'text-white' : 'border-gray-200 text-gray-500 hover:border-gray-300 bg-white'}`}
+                  style={{ backgroundColor: selectedSize === s ? primaryColor : undefined, borderColor: selectedSize === s ? primaryColor : undefined }}
                 >{s}</button>
               ))}
             </div>
           </div>
           
           <div className="flex items-center justify-between pt-3 border-t border-gray-50">
-            <span className="font-black text-lg text-pink-600">${Number(product.price).toLocaleString()}</span>
+            <span className="font-black text-lg" style={{ color: primaryColor }}>${Number(product.price).toLocaleString()}</span>
             <button 
               onClick={() => onAdd(product, selectedSize)}
-              className="bg-pink-600 text-white text-xs px-4 py-2 rounded-xl font-bold hover:bg-pink-700 active:scale-95 transition-all shadow-md shadow-pink-200"
+              className="text-white text-xs px-4 py-2 rounded-xl font-bold active:scale-95 transition-all shadow-md"
+              style={{ backgroundColor: primaryColor, boxShadow: `0 4px 14px 0 ${primaryColor}44` }}
             >Agregar</button>
           </div>
         </div>
@@ -102,7 +104,7 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
   );
 };
 
-const CartSidebar = ({ cart, updateQuantity, checkout, onClose }: any) => {
+const CartSidebar = ({ cart, updateQuantity, checkout, onClose, primaryColor }: any) => {
   const total = cart.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
 
   return (
@@ -123,7 +125,7 @@ const CartSidebar = ({ cart, updateQuantity, checkout, onClose }: any) => {
                 <i className="fas fa-shopping-bag text-3xl opacity-20"></i>
               </div>
               <p className="font-medium">Tu carrito está vacío</p>
-              <button onClick={onClose} className="mt-4 text-pink-600 font-bold text-sm underline">Seguir comprando</button>
+              <button onClick={onClose} className="mt-4 font-bold text-sm underline" style={{ color: primaryColor }}>Seguir comprando</button>
             </div>
           ) : (
             cart.map((item: any) => (
@@ -134,13 +136,13 @@ const CartSidebar = ({ cart, updateQuantity, checkout, onClose }: any) => {
                     <h4 className="font-bold text-sm text-gray-800 line-clamp-1">{item.name}</h4>
                     <button onClick={() => updateQuantity(item.id, item.selectedSize, -item.quantity)} className="text-gray-300 hover:text-red-500"><i className="fas fa-times text-xs"></i></button>
                   </div>
-                  <p className="text-[11px] text-pink-600 font-bold mt-1">Talla: {item.selectedSize}</p>
+                  <p className="text-[11px] font-bold mt-1" style={{ color: primaryColor }}>Talla: {item.selectedSize}</p>
                   
                   <div className="flex items-center justify-between mt-auto">
                     <div className="flex items-center gap-1 bg-white rounded-lg border p-1 shadow-sm">
-                      <button onClick={() => updateQuantity(item.id, item.selectedSize, -1)} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-pink-600">-</button>
+                      <button onClick={() => updateQuantity(item.id, item.selectedSize, -1)} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600">-</button>
                       <span className="w-6 text-center text-xs font-bold text-gray-700">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, item.selectedSize, 1)} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-pink-600">+</button>
+                      <button onClick={() => updateQuantity(item.id, item.selectedSize, 1)} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-gray-600">+</button>
                     </div>
                     <span className="font-black text-sm text-gray-800">${(item.price * item.quantity).toLocaleString()}</span>
                   </div>
@@ -153,7 +155,7 @@ const CartSidebar = ({ cart, updateQuantity, checkout, onClose }: any) => {
         <div className="p-6 bg-gray-50 border-t border-gray-200 rounded-t-[32px] shadow-inner">
           <div className="flex justify-between items-center mb-6">
             <span className="font-bold text-gray-500 uppercase tracking-widest text-xs">Total a pagar</span>
-            <span className="text-3xl font-black text-pink-600">${total.toLocaleString()}</span>
+            <span className="text-3xl font-black" style={{ color: primaryColor }}>${total.toLocaleString()}</span>
           </div>
           <button 
             onClick={checkout}
@@ -178,7 +180,7 @@ const App = () => {
     name: 'TUS CURVAS LINDAS',
     title: 'Tus Curvas Lindas - Moda Delivery',
     primaryColor: '#e91e63',
-    whatsapp: '',
+    whatsapp: '+573196968646',
     logo: '',
     heroTitle: 'Moda a tu medida',
     heroDescription: 'Delivery express de las mejores tendencias.'
@@ -195,15 +197,12 @@ const App = () => {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        // Ajustes
         const { data: setRes } = await supabase.from('settings').select('data').eq('id', 'site_config').single();
         if (setRes) setSettings(setRes.data);
 
-        // Categorías
         const { data: catRes } = await supabase.from('categories').select('*').order('order', { ascending: true });
         if (catRes) setCategories(catRes);
 
-        // Productos
         const { data: prodRes } = await supabase.from('products').select('*');
         if (prodRes) {
           const grouped: Record<string, Product[]> = {};
@@ -280,7 +279,7 @@ const App = () => {
 
   const checkout = () => {
     if (cart.length === 0) return;
-    let msg = `🛍️ *NUEVO PEDIDO - TUS CURVAS LINDAS*\n\nHola! Quiero realizar el siguiente pedido:\n\n`;
+    let msg = `🛍️ *NUEVO PEDIDO - ${settings.name.toUpperCase()}*\n\nHola! Quiero realizar el siguiente pedido:\n\n`;
     cart.forEach(item => {
       msg += `• *${item.name}*\nTalla: ${item.selectedSize} | Cant: ${item.quantity}\nSubtotal: $${(item.price * item.quantity).toLocaleString()}\n\n`;
     });
@@ -289,7 +288,6 @@ const App = () => {
     window.location.href = `https://wa.me/${settings.whatsapp.replace(/\+/g, '').replace(/\s/g, '')}?text=${encodeURIComponent(msg)}`;
   };
 
-  // --- Funciones Sincronización Supabase ---
   const syncAddCategory = async (newCat: any) => {
     const id = newCat.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
     const catData = { ...newCat, id, order: categories.length + 1 };
@@ -352,8 +350,8 @@ const App = () => {
   if (isLoading) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-white">
-        <div className="w-16 h-16 border-4 border-pink-100 border-t-pink-600 rounded-full animate-spin mb-4"></div>
-        <p className="text-pink-600 font-bold animate-pulse">Cargando Tus Curvas Lindas...</p>
+        <div className="w-16 h-16 border-4 border-gray-100 border-t-pink-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-pink-600 font-bold animate-pulse">Cargando...</p>
       </div>
     );
   }
@@ -364,32 +362,36 @@ const App = () => {
       <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 transition-all">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
           <div className="flex items-center gap-3 group cursor-pointer" onClick={() => setActiveTab('all')}>
-            <div className="w-10 h-10 bg-pink-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-pink-200">
-               <i className="fas fa-crown text-xl"></i>
-            </div>
+            {settings.logo ? (
+              <img src={settings.logo} className="w-10 h-10 object-contain rounded-xl shadow-lg" alt="Logo" />
+            ) : (
+              <div className="w-10 h-10 rounded-2xl flex items-center justify-center text-white shadow-lg" style={{ backgroundColor: settings.primaryColor }}>
+                <i className="fas fa-crown text-xl"></i>
+              </div>
+            )}
             <div className="flex flex-col">
-              <span className="text-lg font-black tracking-tight leading-none text-gray-800">{settings.name}</span>
-              <span className="text-[10px] uppercase font-bold text-pink-500 tracking-widest">Premium Fashion</span>
+              <span className="text-lg font-black tracking-tight leading-none text-gray-800 uppercase">{settings.name}</span>
+              <span className="text-[10px] uppercase font-bold tracking-widest" style={{ color: settings.primaryColor }}>Premium Fashion</span>
             </div>
           </div>
           
           <div className="flex items-center gap-4">
             {isAdmin ? (
-              <div className="hidden md:flex items-center gap-2 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
-                <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
-                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-tighter">Admin Activo</span>
-                <button onClick={handleLogout} className="text-[10px] text-indigo-400 hover:text-indigo-800 ml-2">Salir</button>
+              <div className="hidden md:flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-full border border-gray-100">
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: settings.primaryColor }}></div>
+                <span className="text-[10px] font-bold uppercase tracking-tighter" style={{ color: settings.primaryColor }}>Admin Activo</span>
+                <button onClick={handleLogout} className="text-[10px] text-gray-400 hover:text-gray-800 ml-2">Salir</button>
               </div>
             ) : (
-              <button onClick={() => setIsLoginOpen(true)} className="text-gray-400 hover:text-pink-600 transition-colors">
+              <button onClick={() => setIsLoginOpen(true)} className="text-gray-400 hover:text-gray-600 transition-colors">
                 <i className="fas fa-user-circle text-2xl"></i>
               </button>
             )}
             
-            <button onClick={() => setIsCartOpen(true)} className="relative group p-2 rounded-xl hover:bg-pink-50 transition-colors">
-              <i className="fas fa-shopping-bag text-2xl text-pink-600"></i>
+            <button onClick={() => setIsCartOpen(true)} className="relative group p-2 rounded-xl transition-colors">
+              <i className="fas fa-shopping-bag text-2xl" style={{ color: settings.primaryColor }}></i>
               {cart.length > 0 && (
-                <span className="absolute top-1 right-1 bg-pink-600 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black ring-4 ring-white group-hover:scale-110 transition-transform">
+                <span className="absolute top-1 right-1 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black ring-4 ring-white group-hover:scale-110 transition-transform" style={{ backgroundColor: settings.primaryColor }}>
                   {cart.reduce((acc, item) => acc + item.quantity, 0)}
                 </span>
               )}
@@ -401,13 +403,14 @@ const App = () => {
         <div className="max-w-7xl mx-auto px-4 border-t border-gray-50 flex gap-4 py-3 overflow-x-auto no-scrollbar scroll-smooth">
           <button 
             onClick={() => setActiveTab('all')}
-            className={`px-5 py-2 rounded-2xl whitespace-nowrap text-xs font-black transition-all ${activeTab === 'all' ? 'bg-pink-600 text-white shadow-lg shadow-pink-200 scale-105' : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-pink-50'}`}
+            className={`px-5 py-2 rounded-2xl whitespace-nowrap text-xs font-black transition-all ${activeTab === 'all' ? 'text-white shadow-lg scale-105' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}
+            style={{ backgroundColor: activeTab === 'all' ? settings.primaryColor : undefined, boxShadow: activeTab === 'all' ? `0 10px 15px -3px ${settings.primaryColor}44` : undefined }}
           >TODOS</button>
           {categories.map(cat => (
             <button 
               key={cat.id}
               onClick={() => setActiveTab(cat.id)}
-              className={`px-5 py-2 rounded-2xl whitespace-nowrap text-xs font-black transition-all border ${activeTab === cat.id ? 'text-white shadow-lg scale-105' : 'bg-white text-gray-400 border-gray-100 hover:border-pink-200'}`}
+              className={`px-5 py-2 rounded-2xl whitespace-nowrap text-xs font-black transition-all border ${activeTab === cat.id ? 'text-white shadow-lg scale-105' : 'bg-white text-gray-400 border-gray-100'}`}
               style={{ 
                 backgroundColor: activeTab === cat.id ? cat.color : undefined,
                 boxShadow: activeTab === cat.id ? `0 10px 15px -3px ${cat.color}44` : undefined,
@@ -421,7 +424,7 @@ const App = () => {
       {/* Hero */}
       <section className="relative h-[450px] md:h-[550px] overflow-hidden">
         <div 
-          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 transform scale-105 hover:scale-100"
+          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 transform scale-105"
           style={{ 
             backgroundImage: `url(${activeTab === 'all' ? (settings.heroTitle.startsWith('data:') ? settings.heroTitle : 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600') : (categories.find(c => c.id === activeTab)?.img || '')})`,
           }}
@@ -429,7 +432,7 @@ const App = () => {
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         <div className="absolute inset-0 flex items-center justify-center text-center p-6">
           <div className="max-w-3xl animate-in fade-in slide-in-from-bottom-10 duration-700">
-            <h1 className="text-5xl md:text-7xl font-black text-white mb-6 drop-shadow-2xl tracking-tighter italic">
+            <h1 className="text-5xl md:text-7xl font-black text-white mb-6 drop-shadow-2xl tracking-tighter italic uppercase">
               {activeTab === 'all' ? settings.heroTitle : (categories.find(c => c.id === activeTab)?.name)}
             </h1>
             <p className="text-lg md:text-xl text-white/90 font-medium max-w-xl mx-auto drop-shadow-lg leading-relaxed">
@@ -438,7 +441,8 @@ const App = () => {
             {activeTab === 'all' && (
               <button 
                 onClick={() => document.getElementById('main-grid')?.scrollIntoView({ behavior: 'smooth' })}
-                className="mt-10 bg-white text-pink-600 px-10 py-4 rounded-full font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-110 active:scale-95 transition-all"
+                className="mt-10 bg-white px-10 py-4 rounded-full font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-110 active:scale-95 transition-all"
+                style={{ color: settings.primaryColor }}
               >
                 Ver Colección
               </button>
@@ -451,83 +455,32 @@ const App = () => {
       <main id="main-grid" className="max-w-7xl mx-auto px-4 py-20">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
           <div>
-            <span className="text-pink-600 font-black text-xs uppercase tracking-widest mb-2 block">Top Ventas</span>
+            <span className="font-black text-xs uppercase tracking-widest mb-2 block" style={{ color: settings.primaryColor }}>Nuevos Ingresos</span>
             <h2 className="text-4xl font-black text-gray-900 tracking-tighter">
-              {activeTab === 'all' ? 'Nuestras Piezas Clave' : `Colección ${categories.find(c => c.id === activeTab)?.name}`}
+              {activeTab === 'all' ? 'Nuestra Colección' : `Colección ${categories.find(c => c.id === activeTab)?.name}`}
             </h2>
           </div>
           <div className="text-gray-400 text-sm font-medium">
-             Mostrando {activeTab === 'all' ? Object.values(products).flat().length : products[activeTab]?.length || 0} artículos
+             {activeTab === 'all' ? Object.values(products).flat().length : products[activeTab]?.length || 0} modelos disponibles
           </div>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
           {(activeTab === 'all' ? Object.values(products).flat() : products[activeTab] || []).map(prod => (
-            <ProductCard key={prod.id} product={prod} onAdd={addToCart} />
+            <ProductCard key={prod.id} product={prod} onAdd={addToCart} primaryColor={settings.primaryColor} />
           ))}
         </div>
-        
-        {(!products[activeTab] || products[activeTab].length === 0) && activeTab !== 'all' && (
-          <div className="py-20 text-center border-2 border-dashed border-gray-100 rounded-[40px]">
-            <i className="fas fa-search text-gray-200 text-5xl mb-4"></i>
-            <p className="text-gray-400 font-bold">Próximamente nuevos ingresos en esta sección.</p>
-          </div>
-        )}
       </main>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-12">
-          <div>
-            <h3 className="text-2xl font-black mb-6 italic tracking-tighter">{settings.name}</h3>
-            <p className="text-gray-400 text-sm leading-relaxed mb-6">
-              Empresa líder en delivery de moda premium. Llevamos las tendencias internacionales a tu puerta en tiempo récord.
-            </p>
-            <div className="flex gap-4">
-               <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-pink-600 transition-colors"><i className="fab fa-instagram"></i></a>
-               <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-blue-600 transition-colors"><i className="fab fa-facebook-f"></i></a>
-               <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-pink-400 transition-colors"><i className="fab fa-tiktok"></i></a>
-            </div>
-          </div>
-          <div>
-            <h4 className="font-bold mb-6 uppercase text-xs tracking-widest text-pink-500">Enlaces Rápidos</h4>
-            <ul className="space-y-4 text-sm text-gray-400">
-               <li><a href="#" className="hover:text-white transition-colors">Política de Cambios</a></li>
-               <li><a href="#" className="hover:text-white transition-colors">Tiempos de Envío</a></li>
-               <li><a href="#" className="hover:text-white transition-colors">Guía de Tallas</a></li>
-               <li><a href="#" className="hover:text-white transition-colors">Trabaja con nosotros</a></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="font-bold mb-6 uppercase text-xs tracking-widest text-pink-500">Contáctanos</h4>
-            <p className="text-sm text-gray-400 mb-2">WhatsApp de Atención:</p>
-            <p className="text-xl font-black text-white mb-6">{settings.whatsapp}</p>
-            <div className="bg-gray-800 p-4 rounded-2xl flex items-center gap-4">
-               <i className="fas fa-headset text-2xl text-pink-500"></i>
-               <div>
-                  <p className="text-[10px] font-bold text-gray-500 uppercase">Soporte 24/7</p>
-                  <p className="text-xs">Chat en vivo disponible</p>
-               </div>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 border-t border-gray-800 mt-20 pt-8 text-center text-[10px] text-gray-600 font-bold tracking-widest">
-           &copy; {new Date().getFullYear()} {settings.name} | POWERED BY SUPABASE
-        </div>
-      </footer>
-
-      {/* Floating Admin Button */}
+      {/* Panel Flotante Admin */}
       {isAdmin && (
-        <button 
-          onClick={() => setIsAdminPanelOpen(true)} 
-          className="fixed bottom-6 left-6 w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl shadow-2xl hover:scale-110 active:rotate-45 transition-all z-[90] animate-bounce"
-        >
-          <i className="fas fa-plus"></i>
+        <button onClick={() => setIsAdminPanelOpen(true)} className="fixed bottom-6 right-6 w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl shadow-2xl hover:scale-110 transition-transform z-[90] animate-bounce">
+          <i className="fas fa-tools"></i>
         </button>
       )}
 
       {/* Modales */}
-      {isLoginOpen && <LoginModal onLogin={handleLogin} onClose={() => setIsLoginOpen(false)} />}
+      {isLoginOpen && <LoginModal onLogin={handleLogin} onClose={() => setIsLoginOpen(false)} primaryColor={settings.primaryColor} />}
       {isAdminPanelOpen && (
         <AdminPanel 
           onClose={() => setIsAdminPanelOpen(false)} 
@@ -541,7 +494,7 @@ const App = () => {
           syncUpdateSettings={syncUpdateSettings}
         />
       )}
-      {isCartOpen && <CartSidebar cart={cart} updateQuantity={updateQuantity} checkout={checkout} onClose={() => setIsCartOpen(false)} />}
+      {isCartOpen && <CartSidebar cart={cart} updateQuantity={updateQuantity} checkout={checkout} onClose={() => setIsCartOpen(false)} primaryColor={settings.primaryColor} />}
     </div>
   );
 };
@@ -549,17 +502,17 @@ const App = () => {
 // --- Componentes Administrativos ---
 
 const AdminPanel = ({ onClose, categories, syncAddCategory, syncRemoveCategory, products, syncAddProduct, syncRemoveProduct, settings, syncUpdateSettings }: any) => {
-  const [tab, setTab] = useState('cats');
+  const [tab, setTab] = useState('config');
   
   return (
-    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex justify-end">
+    <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex justify-end">
       <div className="w-full max-w-lg bg-white h-full flex flex-col shadow-2xl animate-slide-in">
         <div className="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
           <div>
-            <h2 className="text-xl font-black tracking-tight">Consola de Control</h2>
-            <p className="text-[10px] opacity-70 font-bold uppercase tracking-widest">Sincronizado con Supabase</p>
+            <h2 className="text-xl font-black">Administración</h2>
+            <p className="text-[10px] opacity-70 font-bold uppercase tracking-widest">Panel de Control</p>
           </div>
-          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-2xl">&times;</button>
+          <button onClick={onClose} className="text-2xl hover:rotate-90 transition-transform">&times;</button>
         </div>
         <div className="flex border-b bg-gray-50">
           <button onClick={() => setTab('cats')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest ${tab === 'cats' ? 'border-b-4 border-indigo-600 text-indigo-600 bg-white' : 'text-gray-400'}`}>Categorías</button>
@@ -580,41 +533,33 @@ const AdminCats = ({ categories, onAdd, onRemove }: any) => {
   const [newCat, setNewCat] = useState({ name: '', description: '', img: '', color: '#e91e63' });
 
   return (
-    <div className="space-y-8">
-      <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 shadow-inner">
-        <h4 className="font-black text-xs uppercase tracking-widest text-indigo-800 mb-4">Nueva Sección</h4>
+    <div className="space-y-6">
+      <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+        <h4 className="font-black text-xs uppercase tracking-widest text-gray-500 mb-4">Nueva Categoría</h4>
         <div className="space-y-4">
-          <input value={newCat.name} onChange={e => setNewCat({...newCat, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm bg-white" placeholder="Nombre (ej: Vestidos)" />
-          <textarea value={newCat.description} onChange={e => setNewCat({...newCat, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm bg-white h-24" placeholder="Breve descripción del estilo" />
-          <div className="bg-white p-4 rounded-xl border border-dashed border-indigo-200">
-             <label className="text-[10px] font-black text-gray-400 uppercase block mb-2">Imagen de Portada</label>
-             <input type="file" onChange={async e => {
-               if (e.target.files?.[0]) setNewCat({...newCat, img: await fileToBase64(e.target.files[0])})
-             }} className="text-xs text-gray-400" />
+          <input value={newCat.name} onChange={e => setNewCat({...newCat, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="Nombre (ej: Vestidos)" />
+          <textarea value={newCat.description} onChange={e => setNewCat({...newCat, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm h-20" placeholder="Descripción corta" />
+          <div className="flex flex-col gap-1">
+            <label className="text-[10px] font-bold text-gray-400 uppercase">Imagen Hero</label>
+            <input type="file" onChange={async e => {
+              if (e.target.files?.[0]) setNewCat({...newCat, img: await fileToBase64(e.target.files[0])})
+            }} className="text-xs" />
           </div>
-          <div className="flex items-center gap-4 bg-white p-3 rounded-xl border">
-             <label className="text-[10px] font-black text-gray-400 uppercase">Color distintivo:</label>
-             <input type="color" value={newCat.color} onChange={e => setNewCat({...newCat, color: e.target.value})} className="w-12 h-8 cursor-pointer rounded overflow-hidden" />
+          <div className="flex items-center gap-3">
+            <label className="text-xs font-bold text-gray-500">Color:</label>
+            <input type="color" value={newCat.color} onChange={e => setNewCat({...newCat, color: e.target.value})} className="w-10 h-8 cursor-pointer" />
           </div>
-          <button onClick={() => {onAdd(newCat); setNewCat({name:'', description:'', img:'', color:'#e91e63'})}} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition-all">Crear Categoría</button>
+          <button onClick={() => {onAdd(newCat); setNewCat({name:'', description:'', img:'', color:'#e91e63'})}} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Crear Categoría</button>
         </div>
       </div>
-      <div className="space-y-3">
-        <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[.2em]">Secciones actuales</h4>
+      <div className="space-y-2">
         {categories.map((c: any) => (
-          <div key={c.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-sm group hover:border-red-100 transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 border shadow-sm">
-                 <img src={c.img} className="w-full h-full object-cover" />
-              </div>
-              <div>
-                <span className="font-bold text-sm text-gray-800">{c.name}</span>
-                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">#{c.id}</p>
-              </div>
+          <div key={c.id} className="flex items-center justify-between p-4 bg-white border rounded-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-4 h-4 rounded-full" style={{backgroundColor: c.color}}></div>
+              <span className="font-bold text-sm text-gray-700">{c.name}</span>
             </div>
-            <button onClick={() => onRemove(c.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-200 hover:bg-red-50 hover:text-red-500 transition-all">
-              <i className="fas fa-trash-alt text-xs"></i>
-            </button>
+            <button onClick={() => onRemove(c.id)} className="text-red-400 hover:text-red-600 p-2"><i className="fas fa-trash-alt"></i></button>
           </div>
         ))}
       </div>
@@ -627,131 +572,148 @@ const AdminProds = ({ categories, products, onAdd, onRemove }: any) => {
   const [newProd, setNewProd] = useState({ name: '', description: '', price: 0, mediaType: 'image', mediaUrl: '', sizes: [] as string[] });
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-2">
-        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Seleccionar Colección</label>
-        <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)} className="w-full p-4 border rounded-2xl bg-gray-50 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500/20">
-          <option value="">-- Elige una categoría --</option>
-          {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </div>
+    <div className="space-y-6">
+      <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)} className="w-full p-3 border rounded-2xl bg-gray-50 text-sm font-bold">
+        <option value="">Selecciona Categoría...</option>
+        {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+      </select>
       
       {selectedCat && (
-        <div className="bg-green-50 p-6 rounded-3xl border border-green-100">
-          <h4 className="font-black text-xs uppercase tracking-widest text-green-800 mb-6">Nuevo Ingreso</h4>
-          <div className="space-y-4">
-            <input value={newProd.name} onChange={e => setNewProd({...newProd, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm bg-white" placeholder="Nombre de la prenda" />
-            <textarea value={newProd.description} onChange={e => setNewProd({...newProd, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm bg-white h-24" placeholder="Detalles, materiales, fit..." />
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                 <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Precio</label>
-                 <input type="number" value={newProd.price} onChange={e => setNewProd({...newProd, price: parseFloat(e.target.value)})} className="w-full p-3 border rounded-xl text-sm bg-white font-bold" placeholder="0.00" />
-              </div>
-              <div className="space-y-1">
-                 <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Tallas</label>
-                 <input value={newProd.sizes.join(', ')} onChange={e => setNewProd({...newProd, sizes: e.target.value.split(',').map(s => s.trim()).filter(s => s)})} className="w-full p-3 border rounded-xl text-sm bg-white font-bold" placeholder="S, M, L..." />
-              </div>
-            </div>
-            <div className="bg-white p-4 rounded-xl border border-dashed border-green-200">
-               <label className="text-[10px] font-black text-gray-400 uppercase block mb-2">Archivo Multimedia</label>
-               <input type="file" onChange={async e => {
-                 if (e.target.files?.[0]) {
-                   const file = e.target.files[0];
-                   setNewProd({...newProd, mediaUrl: await fileToBase64(file), mediaType: file.type.startsWith('video') ? 'video' : 'image'})
-                 }
-               }} className="text-xs text-gray-400" />
-            </div>
-            <button onClick={() => {onAdd(selectedCat, newProd); setNewProd({name:'', description:'', price:0, mediaType:'image', mediaUrl:'', sizes:[]})}} className="w-full bg-green-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-green-700 transition-all">Subir Producto</button>
+        <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-4">
+          <input value={newProd.name} onChange={e => setNewProd({...newProd, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="Nombre" />
+          <textarea value={newProd.description} onChange={e => setNewProd({...newProd, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm h-20" placeholder="Detalles" />
+          <input type="number" value={newProd.price} onChange={e => setNewProd({...newProd, price: parseFloat(e.target.value)})} className="w-full p-3 border rounded-xl text-sm" placeholder="Precio ($)" />
+          <input value={newProd.sizes.join(', ')} onChange={e => setNewProd({...newProd, sizes: e.target.value.split(',').map(s => s.trim()).filter(s => s)})} className="w-full p-3 border rounded-xl text-sm" placeholder="Tallas (S, M, L...)" />
+          <div className="flex flex-col gap-1">
+             <label className="text-[10px] font-bold text-gray-400 uppercase">Multimedia</label>
+             <input type="file" onChange={async e => {
+               if (e.target.files?.[0]) setNewProd({...newProd, mediaUrl: await fileToBase64(e.target.files[0]), mediaType: e.target.files[0].type.startsWith('video') ? 'video' : 'image'})
+             }} className="text-xs" />
           </div>
+          <button onClick={() => {onAdd(selectedCat, newProd); setNewProd({name:'', description:'', price:0, mediaType:'image', mediaUrl:'', sizes:[]})}} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg">Subir Producto</button>
         </div>
       )}
 
-      {selectedCat && (
-        <div className="space-y-3">
-          <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[.2em]">Inventario Actual</h4>
-          {products[selectedCat]?.length ? products[selectedCat].map((p: any) => (
-            <div key={p.id} className="flex items-center justify-between p-3 bg-white border border-gray-50 rounded-2xl group hover:border-red-50 transition-all">
-              <div className="flex items-center gap-4">
-                <img src={p.mediaUrl} className="w-12 h-16 object-cover rounded-lg shadow-sm" />
-                <div>
-                   <p className="text-sm font-bold text-gray-800">{p.name}</p>
-                   <p className="text-[10px] font-black text-pink-600 tracking-tighter">${p.price.toLocaleString()}</p>
-                </div>
-              </div>
-              <button onClick={() => onRemove(selectedCat, p.id)} className="w-10 h-10 rounded-full flex items-center justify-center text-gray-200 hover:text-red-500 transition-colors">
-                <i className="fas fa-trash-alt text-xs"></i>
-              </button>
-            </div>
-          )) : <p className="text-center py-10 text-xs text-gray-300 font-bold italic">No hay productos en esta categoría.</p>}
+      {selectedCat && products[selectedCat]?.map((p: any) => (
+        <div key={p.id} className="flex items-center justify-between p-3 border-b group">
+          <div className="flex items-center gap-3">
+            <img src={p.mediaUrl} className="w-10 h-10 object-cover rounded shadow-sm" />
+            <span className="text-xs font-bold text-gray-700">{p.name}</span>
+          </div>
+          <button onClick={() => onRemove(selectedCat, p.id)} className="text-red-300 hover:text-red-500 p-2"><i className="fas fa-trash-alt"></i></button>
         </div>
-      )}
+      ))}
     </div>
   );
 };
 
-const AdminSettings = ({ settings, onUpdate }: any) => (
-  <div className="space-y-8">
-    <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-      <h4 className="font-black text-xs uppercase tracking-widest text-gray-700 mb-6">Identidad Visual</h4>
-      <div className="space-y-6">
-        <div>
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nombre Comercial</label>
-          <input value={settings.name} onChange={e => onUpdate({...settings, name: e.target.value})} className="w-full p-4 border rounded-2xl text-sm bg-white font-bold" />
-        </div>
-        <div>
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Enlace WhatsApp</label>
-          <input value={settings.whatsapp} onChange={e => onUpdate({...settings, whatsapp: e.target.value})} className="w-full p-4 border rounded-2xl text-sm bg-white font-bold" placeholder="+57 319..." />
-        </div>
-        <div className="flex items-center gap-6 bg-white p-4 rounded-2xl border">
-          <div className="flex flex-col">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Color Primario</label>
-            <span className="text-[9px] text-gray-300 font-bold">{settings.primaryColor}</span>
-          </div>
-          <input type="color" value={settings.primaryColor} onChange={e => onUpdate({...settings, primaryColor: e.target.value})} className="w-16 h-10 border-0 rounded cursor-pointer outline-none" />
-        </div>
-      </div>
-    </div>
-    
-    <div className="bg-indigo-900 text-white p-6 rounded-3xl border border-indigo-950 shadow-xl">
-      <h4 className="font-black text-xs uppercase tracking-widest text-indigo-300 mb-6">Mensaje Principal (Hero)</h4>
-      <div className="space-y-6">
-        <div>
-          <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Título de Impacto</label>
-          <input value={settings.heroTitle} onChange={e => onUpdate({...settings, heroTitle: e.target.value})} className="w-full p-4 border border-indigo-800 rounded-2xl text-sm bg-indigo-950 text-white outline-none focus:ring-2 focus:ring-pink-500/50" />
-        </div>
-        <div>
-          <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Bajada / Descripción</label>
-          <textarea value={settings.heroDescription} onChange={e => onUpdate({...settings, heroDescription: e.target.value})} className="w-full p-4 border border-indigo-800 rounded-2xl text-sm bg-indigo-950 text-white h-32 outline-none focus:ring-2 focus:ring-pink-500/50" />
-        </div>
-      </div>
-    </div>
-  </div>
-);
+const AdminSettings = ({ settings, onUpdate }: { settings: SiteSettings, onUpdate: (s: SiteSettings) => void }) => {
+  const [localSettings, setLocalSettings] = useState(settings);
 
-const LoginModal = ({ onLogin, onClose }: any) => {
+  const handleSave = () => {
+    onUpdate(localSettings);
+    alert('Ajustes guardados correctamente.');
+  };
+
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      const base64 = await fileToBase64(e.target.files[0]);
+      setLocalSettings({...localSettings, logo: base64});
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-5">
+        <h4 className="font-black text-xs uppercase tracking-widest text-gray-500">Configuración General</h4>
+        
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nombre Comercial</label>
+          <input value={localSettings.name} onChange={e => setLocalSettings({...localSettings, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm" />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Título de la Página</label>
+          <input value={localSettings.title} onChange={e => setLocalSettings({...localSettings, title: e.target.value})} className="w-full p-3 border rounded-xl text-sm" />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Color Principal del Sitio</label>
+          <div className="flex items-center gap-4 bg-white p-3 border rounded-xl">
+            <input type="color" value={localSettings.primaryColor} onChange={e => setLocalSettings({...localSettings, primaryColor: e.target.value})} className="w-16 h-10 border-0 rounded cursor-pointer" />
+            <span className="text-xs font-mono font-bold text-gray-400">{localSettings.primaryColor}</span>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">WhatsApp de Pedidos</label>
+          <input value={localSettings.whatsapp} onChange={e => setLocalSettings({...localSettings, whatsapp: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="+57 319..." />
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Logo del Sitio</label>
+          <div className="flex flex-col gap-3 p-4 bg-white border rounded-2xl items-center">
+            {localSettings.logo ? (
+              <div className="relative group">
+                <img src={localSettings.logo} className="h-20 w-20 object-contain rounded" alt="Logo Preview" />
+                <button 
+                  onClick={() => setLocalSettings({...localSettings, logo: ''})} 
+                  className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-lg"
+                >&times;</button>
+              </div>
+            ) : (
+              <div className="h-20 w-20 bg-gray-50 rounded-xl flex items-center justify-center text-gray-300 border-2 border-dashed border-gray-200">
+                <i className="fas fa-image text-3xl"></i>
+              </div>
+            )}
+            <input type="file" onChange={handleLogoUpload} className="text-xs" accept="image/*" />
+          </div>
+        </div>
+      </div>
+
+      <div className="bg-indigo-900 text-white p-6 rounded-3xl border border-indigo-950 space-y-5">
+        <h4 className="font-black text-xs uppercase tracking-widest text-indigo-300">Mensajes del Hero (Principal)</h4>
+        
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Título de Impacto</label>
+          <input value={localSettings.heroTitle} onChange={e => setLocalSettings({...localSettings, heroTitle: e.target.value})} className="w-full p-3 border border-indigo-800 rounded-xl text-sm bg-indigo-950 text-white outline-none" />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Descripción / Bajada</label>
+          <textarea value={localSettings.heroDescription} onChange={e => setLocalSettings({...localSettings, heroDescription: e.target.value})} className="w-full p-3 border border-indigo-800 rounded-xl text-sm bg-indigo-950 text-white h-24 outline-none" />
+        </div>
+      </div>
+
+      <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition-all">Guardar Todos los Cambios</button>
+    </div>
+  );
+};
+
+const LoginModal = ({ onLogin, onClose, primaryColor }: any) => {
   const [pass, setPass] = useState('');
   return (
     <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
-      <div className="bg-white p-10 rounded-[40px] w-full max-w-sm shadow-2xl scale-100 animate-in zoom-in-95 duration-300">
-        <div className="flex flex-col items-center mb-10">
-          <div className="w-20 h-20 bg-pink-50 text-pink-600 rounded-3xl flex items-center justify-center text-4xl mb-6 shadow-inner rotate-3 hover:rotate-0 transition-transform">
-            <i className="fas fa-shield-alt"></i>
+      <div className="bg-white p-10 rounded-[40px] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="flex flex-col items-center mb-10 text-center">
+          <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center text-4xl mb-6 shadow-inner" style={{ color: primaryColor }}>
+            <i className="fas fa-user-shield"></i>
           </div>
           <h2 className="text-3xl font-black text-gray-900 tracking-tighter">Acceso Staff</h2>
-          <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-2">Solo personal autorizado</p>
+          <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-2">Introduce tu contraseña maestra</p>
         </div>
         <input 
           type="password" 
           value={pass} 
           onChange={e => setPass(e.target.value)} 
           onKeyDown={e => e.key === 'Enter' && onLogin(pass)}
-          className="w-full p-5 border-2 border-gray-100 rounded-[20px] mb-8 bg-gray-50 focus:border-pink-600 outline-none text-center text-2xl tracking-[0.4em] text-gray-800 transition-all font-black shadow-inner" 
+          className="w-full p-5 border-2 border-gray-100 rounded-[20px] mb-8 bg-gray-50 outline-none text-center text-2xl tracking-[0.4em] text-gray-800 transition-all font-black shadow-inner" 
           placeholder="••••" 
           autoFocus 
         />
         <div className="flex gap-4">
-          <button onClick={onClose} className="flex-1 py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600 transition-colors">Cancelar</button>
-          <button onClick={() => onLogin(pass)} className="flex-1 py-4 bg-pink-600 text-white rounded-[20px] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-pink-200 hover:scale-105 active:scale-95 transition-all">Ingresar</button>
+          <button onClick={onClose} className="flex-1 py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600">Cancelar</button>
+          <button onClick={() => onLogin(pass)} className="flex-1 py-4 text-white rounded-[20px] font-black text-[10px] uppercase tracking-widest shadow-xl" style={{ backgroundColor: primaryColor }}>Ingresar</button>
         </div>
       </div>
     </div>
