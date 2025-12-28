@@ -1,14 +1,15 @@
 
 import { GoogleGenAI, Type, GenerateContentResponse, Modality } from "@google/genai";
 
-const getAI = () => new GoogleGenAI({ apiKey: import.meta.env.VITE_API_KEY });
+const getAI = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
+// Fix: Simplified contents structure to use string where appropriate
 export const getMarketInsights = async (query: string): Promise<{ text: string; sources: any[] }> => {
   const ai = getAI();
   try {
     const response: GenerateContentResponse = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: [{ parts: [{ text: `Provide a professional, concise market analysis for: ${query}. Focus on current trends and data. Format with markdown.` }] }],
+      contents: `Provide a professional, concise market analysis for: ${query}. Focus on current trends and data. Format with markdown.`,
       config: {
         tools: [{ googleSearch: {} }],
       },
@@ -24,12 +25,13 @@ export const getMarketInsights = async (query: string): Promise<{ text: string; 
   }
 };
 
+// Fix: Simplified contents structure to use string and ensure systemInstruction is used correctly
 export const analyzeData = async (data: any): Promise<string> => {
   const ai = getAI();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-pro-preview',
-      contents: [{ parts: [{ text: `Analyze this dashboard data and provide 3 actionable business insights: ${JSON.stringify(data)}` }] }],
+      contents: `Analyze this dashboard data and provide 3 actionable business insights: ${JSON.stringify(data)}`,
       config: {
         systemInstruction: "You are a senior business analyst. Be concise, professional, and data-driven.",
         thinkingConfig: { thinkingBudget: 1000 }

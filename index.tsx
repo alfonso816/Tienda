@@ -1,6 +1,12 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
+import { createClient } from '@supabase/supabase-js';
+
+// --- Configuración Supabase (PROYECTO: dnjtsfymqmhupallnkvi) ---
+const SUPABASE_URL = 'https://dnjtsfymqmhupallnkvi.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuanRzZnltcW1odXBhbGxua3ZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4OTUwNTQsImV4cCI6MjA4MjQ3MTA1NH0.0FKal89pt4a1GNN1GGZ1C1ztzCTY-ykErkTzvt8oNUA';
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- Tipos e Interfaces ---
 interface Category {
@@ -14,6 +20,7 @@ interface Category {
 
 interface Product {
   id: string;
+  category_id: string;
   name: string;
   description: string;
   price: number;
@@ -47,69 +54,192 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
+// --- Subcomponentes ---
+
+const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) => void }> = ({ product, onAdd }) => {
+  const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || 'Única');
+
+  return (
+    <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group border border-gray-100 flex flex-col h-full">
+      <div className="relative aspect-[4/5] overflow-hidden bg-gray-50">
+        {product.mediaType === 'image' ? (
+          <img src={product.mediaUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.name} />
+        ) : (
+          <video src={product.mediaUrl} className="w-full h-full object-cover" muted autoPlay loop />
+        )}
+        <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-2 py-1 rounded-lg text-[10px] font-bold text-pink-600 shadow-sm">
+          NUEVO
+        </div>
+      </div>
+      <div className="p-4 flex flex-col flex-1">
+        <h3 className="font-bold text-gray-800 mb-1 line-clamp-1">{product.name}</h3>
+        <p className="text-gray-400 text-[11px] mb-3 line-clamp-2 leading-tight">{product.description}</p>
+        
+        <div className="mt-auto">
+          <div className="mb-4">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Talla disponible</span>
+            <div className="flex flex-wrap gap-1">
+              {product.sizes?.map(s => (
+                <button 
+                  key={s} 
+                  onClick={() => setSelectedSize(s)}
+                  className={`text-[10px] min-w-[32px] h-8 flex items-center justify-center border rounded-lg font-medium transition-colors ${selectedSize === s ? 'bg-pink-600 border-pink-600 text-white' : 'border-gray-200 text-gray-500 hover:border-pink-300 bg-white'}`}
+                >{s}</button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+            <span className="font-black text-lg text-pink-600">${Number(product.price).toLocaleString()}</span>
+            <button 
+              onClick={() => onAdd(product, selectedSize)}
+              className="bg-pink-600 text-white text-xs px-4 py-2 rounded-xl font-bold hover:bg-pink-700 active:scale-95 transition-all shadow-md shadow-pink-200"
+            >Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CartSidebar = ({ cart, updateQuantity, checkout, onClose }: any) => {
+  const total = cart.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
+
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex justify-end">
+      <div className="w-full max-w-md bg-white h-full flex flex-col shadow-2xl animate-slide-in">
+        <div className="p-6 border-b flex justify-between items-center bg-white">
+          <div>
+            <h2 className="text-2xl font-black text-gray-800">Mi Carrito</h2>
+            <p className="text-xs text-gray-400">{cart.length} artículos seleccionados</p>
+          </div>
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-2xl text-gray-400">&times;</button>
+        </div>
+        
+        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
+          {cart.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-gray-300 py-20">
+              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                <i className="fas fa-shopping-bag text-3xl opacity-20"></i>
+              </div>
+              <p className="font-medium">Tu carrito está vacío</p>
+              <button onClick={onClose} className="mt-4 text-pink-600 font-bold text-sm underline">Seguir comprando</button>
+            </div>
+          ) : (
+            cart.map((item: any) => (
+              <div key={`${item.id}-${item.selectedSize}`} className="flex gap-4 p-3 bg-gray-50 rounded-2xl border border-gray-100">
+                <img src={item.mediaUrl} className="w-20 h-24 object-cover rounded-xl shadow-sm" alt="" />
+                <div className="flex-1 flex flex-col">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-bold text-sm text-gray-800 line-clamp-1">{item.name}</h4>
+                    <button onClick={() => updateQuantity(item.id, item.selectedSize, -item.quantity)} className="text-gray-300 hover:text-red-500"><i className="fas fa-times text-xs"></i></button>
+                  </div>
+                  <p className="text-[11px] text-pink-600 font-bold mt-1">Talla: {item.selectedSize}</p>
+                  
+                  <div className="flex items-center justify-between mt-auto">
+                    <div className="flex items-center gap-1 bg-white rounded-lg border p-1 shadow-sm">
+                      <button onClick={() => updateQuantity(item.id, item.selectedSize, -1)} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-pink-600">-</button>
+                      <span className="w-6 text-center text-xs font-bold text-gray-700">{item.quantity}</span>
+                      <button onClick={() => updateQuantity(item.id, item.selectedSize, 1)} className="w-6 h-6 flex items-center justify-center text-gray-400 hover:text-pink-600">+</button>
+                    </div>
+                    <span className="font-black text-sm text-gray-800">${(item.price * item.quantity).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        
+        <div className="p-6 bg-gray-50 border-t border-gray-200 rounded-t-[32px] shadow-inner">
+          <div className="flex justify-between items-center mb-6">
+            <span className="font-bold text-gray-500 uppercase tracking-widest text-xs">Total a pagar</span>
+            <span className="text-3xl font-black text-pink-600">${total.toLocaleString()}</span>
+          </div>
+          <button 
+            onClick={checkout}
+            disabled={cart.length === 0}
+            className="w-full bg-[#25D366] text-white py-4 rounded-2xl font-black flex items-center justify-center gap-3 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:grayscale transition-all shadow-xl shadow-green-100"
+          >
+            <i className="fab fa-whatsapp text-xl"></i> PEDIR POR WHATSAPP
+          </button>
+          <p className="text-[10px] text-center text-gray-400 mt-4 px-4 leading-tight">Serás redirigido a WhatsApp para coordinar el pago y la entrega.</p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // --- App Principal ---
 const App = () => {
-  // Estados de datos
   const [categories, setCategories] = useState<Category[]>([]);
   const [products, setProducts] = useState<Record<string, Product[]>>({});
   const [cart, setCart] = useState<CartItem[]>([]);
   const [settings, setSettings] = useState<SiteSettings>({
     name: 'TUS CURVAS LINDAS',
-    title: 'Tus Curvas Lindas - Delivery de Moda',
+    title: 'Tus Curvas Lindas - Moda Delivery',
     primaryColor: '#e91e63',
-    whatsapp: '+573196968646',
+    whatsapp: '',
     logo: '',
-    heroTitle: 'Moda a tu puerta en minutos',
-    heroDescription: 'Descubre las últimas tendencias en moda con entrega rápida. Ropa, calzado y accesorios para toda ocasión.'
+    heroTitle: 'Moda a tu medida',
+    heroDescription: 'Delivery express de las mejores tendencias.'
   });
 
-  // Estados de UI
   const [activeTab, setActiveTab] = useState<string>('all');
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Cargar datos iniciales
+  // 1. Cargar Datos desde Supabase
   useEffect(() => {
-    const savedCategories = localStorage.getItem('tcl_categories');
-    const savedProducts = localStorage.getItem('tcl_products');
-    const savedSettings = localStorage.getItem('tcl_settings');
+    const fetchData = async () => {
+      try {
+        // Ajustes
+        const { data: setRes } = await supabase.from('settings').select('data').eq('id', 'site_config').single();
+        if (setRes) setSettings(setRes.data);
+
+        // Categorías
+        const { data: catRes } = await supabase.from('categories').select('*').order('order', { ascending: true });
+        if (catRes) setCategories(catRes);
+
+        // Productos
+        const { data: prodRes } = await supabase.from('products').select('*');
+        if (prodRes) {
+          const grouped: Record<string, Product[]> = {};
+          prodRes.forEach((p: any) => {
+            const mapped: Product = {
+              id: p.id,
+              category_id: p.category_id,
+              name: p.name,
+              description: p.description,
+              price: Number(p.price),
+              mediaUrl: p.media_url,
+              mediaType: p.media_type,
+              sizes: p.sizes || []
+            };
+            if (!grouped[p.category_id]) grouped[p.category_id] = [];
+            grouped[p.category_id].push(mapped);
+          });
+          setProducts(grouped);
+        }
+      } catch (err) {
+        console.error("Error cargando datos:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     const savedUser = localStorage.getItem('tcl_user');
-
-    if (savedSettings) setSettings(JSON.parse(savedSettings));
     if (savedUser === 'admin') setIsAdmin(true);
-
-    if (savedCategories && savedProducts) {
-      setCategories(JSON.parse(savedCategories));
-      setProducts(JSON.parse(savedProducts));
-    } else {
-      // Datos por defecto si no hay nada
-      const initialCats: Category[] = [
-        { id: 'camisetas', name: 'Camisetas', description: 'Moda para todos', img: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800', color: '#2196f3', order: 1 },
-        { id: 'jeans', name: 'Jeans', description: 'Corte perfecto', img: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800', color: '#4caf50', order: 2 }
-      ];
-      const initialProds: Record<string, Product[]> = {
-        camisetas: [
-          { id: 'c1', name: 'Camiseta Básica', description: '100% Algodón', price: 15.99, mediaType: 'image', mediaUrl: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?w=800', sizes: ['S', 'M', 'L'] }
-        ],
-        jeans: [
-          { id: 'j1', name: 'Jeans Slim Fit', description: 'Azul clásico', price: 34.99, mediaType: 'image', mediaUrl: 'https://images.unsplash.com/photo-1541099649105-f69ad21f3246?w=800', sizes: ['30', '32', '34'] }
-        ]
-      };
-      setCategories(initialCats);
-      setProducts(initialProds);
-    }
+    
+    fetchData();
   }, []);
 
-  // Guardar cambios
   useEffect(() => {
-    if (categories.length > 0) localStorage.setItem('tcl_categories', JSON.stringify(categories));
-    if (Object.keys(products).length > 0) localStorage.setItem('tcl_products', JSON.stringify(products));
-    localStorage.setItem('tcl_settings', JSON.stringify(settings));
     document.documentElement.style.setProperty('--primary-color', settings.primaryColor);
     document.title = settings.title;
-  }, [categories, products, settings]);
+  }, [settings]);
 
   const handleLogin = (password: string) => {
     if (password === 'admin123') {
@@ -150,256 +280,32 @@ const App = () => {
 
   const checkout = () => {
     if (cart.length === 0) return;
-    let msg = `Hola! Quiero realizar un pedido de moda. Mi pedido es:\n\n`;
+    let msg = `🛍️ *NUEVO PEDIDO - TUS CURVAS LINDAS*\n\nHola! Quiero realizar el siguiente pedido:\n\n`;
     cart.forEach(item => {
-      msg += `- ${item.name} (Talla: ${item.selectedSize}) x${item.quantity}: $${(item.price * item.quantity).toFixed(2)}\n`;
+      msg += `• *${item.name}*\nTalla: ${item.selectedSize} | Cant: ${item.quantity}\nSubtotal: $${(item.price * item.quantity).toLocaleString()}\n\n`;
     });
     const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-    msg += `\nTotal: $${total.toFixed(2)}`;
-    window.location.href = `https://wa.me/${settings.whatsapp.replace(/\+/g, '')}?text=${encodeURIComponent(msg)}`;
+    msg += `💰 *TOTAL A PAGAR: $${total.toLocaleString()}*`;
+    window.location.href = `https://wa.me/${settings.whatsapp.replace(/\+/g, '').replace(/\s/g, '')}?text=${encodeURIComponent(msg)}`;
   };
 
-  return (
-    <div className="min-h-screen">
-      {/* Header */}
-      <header className="bg-white shadow-md sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
-          <div className="flex items-center gap-3">
-            {settings.logo && <img src={settings.logo} className="w-10 h-10 object-contain rounded" alt="Logo" />}
-            <span className="text-xl font-bold" style={{ color: 'var(--primary-color)' }}>{settings.name}</span>
-          </div>
-          <div className="flex items-center gap-4">
-            {isAdmin ? (
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-pink-600">Admin</span>
-                <button onClick={handleLogout} className="text-xs border border-pink-600 text-pink-600 px-2 py-1 rounded hover:bg-pink-600 hover:text-white transition-colors">Salir</button>
-              </div>
-            ) : (
-              <button onClick={() => setIsLoginOpen(true)} className="bg-pink-600 text-white px-4 py-2 rounded font-bold text-sm">Iniciar Sesión</button>
-            )}
-            <div onClick={() => setIsCartOpen(true)} className="relative cursor-pointer">
-              <i className="fas fa-shopping-cart text-2xl text-pink-600"></i>
-              <span className="absolute -top-2 -right-2 bg-pink-600 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold">
-                {cart.reduce((acc, item) => acc + item.quantity, 0)}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 border-t overflow-x-auto flex gap-4 py-2 custom-scrollbar">
-          <button 
-            onClick={() => setActiveTab('all')}
-            className={`px-4 py-1 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${activeTab === 'all' ? 'bg-pink-600 text-white' : 'bg-gray-100'}`}
-          >Todos</button>
-          {categories.map(cat => (
-            <button 
-              key={cat.id}
-              onClick={() => setActiveTab(cat.id)}
-              className={`px-4 py-1 rounded-full whitespace-nowrap text-sm font-medium transition-colors ${activeTab === cat.id ? 'text-white' : 'bg-gray-100'}`}
-              style={{ backgroundColor: activeTab === cat.id ? cat.color : '#f3f4f6' }}
-            >{cat.name}</button>
-          ))}
-        </div>
-      </header>
-
-      {/* Hero */}
-      <section 
-        className="relative h-[400px] flex items-center justify-center text-center text-white"
-        style={{ 
-          background: `linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url(${activeTab === 'all' ? (settings.heroTitle === 'Moda a tu puerta en minutos' && !settings.heroDescription.includes('http') ? 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600' : (settings.heroTitle.startsWith('data:') ? settings.heroTitle : 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600')) : (categories.find(c => c.id === activeTab)?.img || '')})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center'
-        }}
-      >
-        <div className="p-4">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">{activeTab === 'all' ? settings.heroTitle : (categories.find(c => c.id === activeTab)?.name)}</h1>
-          <p className="max-w-2xl mx-auto text-lg opacity-90">{activeTab === 'all' ? settings.heroDescription : (categories.find(c => c.id === activeTab)?.description)}</p>
-        </div>
-      </section>
-
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-12">
-        <h2 className="text-2xl font-bold mb-8">{activeTab === 'all' ? 'Productos Destacados' : `Selección de ${categories.find(c => c.id === activeTab)?.name}`}</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {(activeTab === 'all' ? Object.values(products).flat() : products[activeTab] || []).map(prod => (
-            <ProductCard key={prod.id} product={prod} onAdd={addToCart} />
-          ))}
-        </div>
-      </main>
-
-      {/* Footer */}
-      <footer className="bg-zinc-900 text-white py-12 mt-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-gray-400">© 2024 {settings.name}. Moda a tu medida.</p>
-        </div>
-      </footer>
-
-      {/* Modales y Paneles */}
-      {isLoginOpen && <LoginModal onLogin={handleLogin} onClose={() => setIsLoginOpen(false)} />}
-      {isAdmin && <AdminButton onClick={() => setIsAdminPanelOpen(true)} />}
-      {isAdminPanelOpen && (
-        <AdminPanel 
-          onClose={() => setIsAdminPanelOpen(false)} 
-          categories={categories} 
-          setCategories={setCategories}
-          products={products}
-          setProducts={setProducts}
-          settings={settings}
-          setSettings={setSettings}
-        />
-      )}
-      {isCartOpen && <CartSidebar cart={cart} updateQuantity={updateQuantity} checkout={checkout} onClose={() => setIsCartOpen(false)} />}
-    </div>
-  );
-};
-
-// --- Subcomponentes ---
-
-const ProductCard = ({ product, onAdd }: { product: Product, onAdd: (p: Product, s: string) => void }) => {
-  const [selectedSize, setSelectedSize] = useState(product.sizes[0] || 'Única');
-
-  return (
-    <div className="bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow group">
-      <div className="h-56 overflow-hidden bg-gray-100">
-        {product.mediaType === 'image' ? (
-          <img src={product.mediaUrl} className="w-full h-full object-cover group-hover:scale-105 transition-transform" alt={product.name} />
-        ) : (
-          <video src={product.mediaUrl} className="w-full h-full object-cover" muted autoPlay loop />
-        )}
-      </div>
-      <div className="p-4">
-        <h3 className="font-bold text-lg mb-1">{product.name}</h3>
-        <p className="text-gray-500 text-xs mb-3 h-8 overflow-hidden">{product.description}</p>
-        <div className="mb-3">
-          <span className="text-xs text-gray-400 block mb-1">Tallas:</span>
-          <div className="flex flex-wrap gap-1">
-            {product.sizes.map(s => (
-              <button 
-                key={s} 
-                onClick={() => setSelectedSize(s)}
-                className={`text-[10px] w-6 h-6 flex items-center justify-center border rounded ${selectedSize === s ? 'bg-pink-600 border-pink-600 text-white' : 'border-gray-200 text-gray-600 bg-white'}`}
-              >{s}</button>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center justify-between mt-auto">
-          <span className="font-bold text-pink-600">${product.price.toFixed(2)}</span>
-          <button 
-            onClick={() => onAdd(product, selectedSize)}
-            className="bg-pink-600 text-white text-xs px-3 py-2 rounded font-bold hover:bg-pink-700 transition-colors"
-          >Agregar</button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const CartSidebar = ({ cart, updateQuantity, checkout, onClose }: any) => {
-  const total = cart.reduce((acc: number, item: any) => acc + (item.price * item.quantity), 0);
-
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-sm flex justify-end">
-      <div className="w-full max-w-sm bg-white h-full flex flex-col shadow-2xl animate-slide-in">
-        <div className="p-4 border-b flex justify-between items-center bg-white text-gray-800">
-          <h2 className="text-xl font-bold">Tu Carrito</h2>
-          <button onClick={onClose} className="text-2xl text-gray-400 hover:text-gray-600">&times;</button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-white">
-          {cart.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-300">
-              <i className="fas fa-shopping-bag text-5xl mb-4 opacity-10"></i>
-              <p>Tu carrito está vacío</p>
-            </div>
-          ) : (
-            cart.map((item: any) => (
-              <div key={`${item.id}-${item.selectedSize}`} className="flex gap-4 mb-4 pb-4 border-b">
-                <img src={item.mediaUrl} className="w-20 h-20 object-cover rounded shadow-sm" alt="" />
-                <div className="flex-1">
-                  <h4 className="font-bold text-sm text-gray-800">{item.name}</h4>
-                  <p className="text-xs text-pink-600 font-medium">Talla: {item.selectedSize}</p>
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-2">
-                      <button onClick={() => updateQuantity(item.id, item.selectedSize, -1)} className="w-6 h-6 border border-gray-200 rounded text-gray-500 bg-white">-</button>
-                      <span className="text-sm font-medium text-gray-700">{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, item.selectedSize, 1)} className="w-6 h-6 border border-gray-200 rounded text-gray-500 bg-white">+</button>
-                    </div>
-                    <span className="font-bold text-sm text-gray-800">${(item.price * item.quantity).toFixed(2)}</span>
-                  </div>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-        <div className="p-6 border-t bg-gray-50">
-          <div className="flex justify-between items-center mb-4">
-            <span className="font-medium text-gray-600">Subtotal</span>
-            <span className="text-xl font-bold text-pink-600">${total.toFixed(2)}</span>
-          </div>
-          <button 
-            onClick={checkout}
-            disabled={cart.length === 0}
-            className="w-full bg-green-600 text-white py-3 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-green-700 disabled:opacity-50 transition-colors shadow-lg"
-          >
-            <i className="fab fa-whatsapp"></i> Finalizar por WhatsApp
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const AdminButton = ({ onClick }: { onClick: () => void }) => (
-  <button 
-    onClick={onClick}
-    className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl shadow-xl hover:scale-110 transition-transform z-[90]"
-  >+</button>
-);
-
-const AdminPanel = ({ onClose, categories, setCategories, products, setProducts, settings, setSettings }: any) => {
-  const [tab, setTab] = useState('cats');
-  
-  return (
-    <div className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-sm flex justify-end">
-      <div className="w-full max-w-lg bg-white h-full flex flex-col shadow-2xl animate-slide-in">
-        <div className="p-4 border-b flex justify-between items-center bg-indigo-600 text-white">
-          <h2 className="text-xl font-bold">Panel de Administración</h2>
-          <button onClick={onClose} className="text-2xl text-indigo-200 hover:text-white">&times;</button>
-        </div>
-        <div className="flex border-b bg-gray-50">
-          <button onClick={() => setTab('cats')} className={`flex-1 py-3 text-sm font-bold ${tab === 'cats' ? 'border-b-2 border-indigo-600 text-indigo-600 bg-white' : 'text-gray-400'}`}>Categorías</button>
-          <button onClick={() => setTab('prods')} className={`flex-1 py-3 text-sm font-bold ${tab === 'prods' ? 'border-b-2 border-indigo-600 text-indigo-600 bg-white' : 'text-gray-400'}`}>Productos</button>
-          <button onClick={() => setTab('config')} className={`flex-1 py-3 text-sm font-bold ${tab === 'config' ? 'border-b-2 border-indigo-600 text-indigo-600 bg-white' : 'text-gray-400'}`}>Ajustes</button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-6 custom-scrollbar bg-white">
-          {tab === 'cats' && <AdminCats categories={categories} setCategories={setCategories} setProducts={setProducts} />}
-          {tab === 'prods' && <AdminProds categories={categories} products={products} setProducts={setProducts} />}
-          {tab === 'config' && <AdminSettings settings={settings} setSettings={setSettings} />}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// --- Subcomponentes Admin ---
-
-const AdminCats = ({ categories, setCategories, setProducts }: any) => {
-  const [newCat, setNewCat] = useState({ name: '', description: '', img: '', color: '#e91e63' });
-
-  const addCat = () => {
-    if (!newCat.name || !newCat.img) {
-      alert('Por favor completa el nombre y selecciona una imagen');
-      return;
+  // --- Funciones Sincronización Supabase ---
+  const syncAddCategory = async (newCat: any) => {
+    const id = newCat.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
+    const catData = { ...newCat, id, order: categories.length + 1 };
+    const { error } = await supabase.from('categories').insert([catData]);
+    if (!error) {
+      setCategories(prev => [...prev, catData]);
+      setProducts(prev => ({ ...prev, [id]: [] }));
     }
-    const id = newCat.name.toLowerCase().replace(/\s+/g, '-');
-    const cat = { ...newCat, id, order: categories.length + 1 };
-    setCategories((prev: any) => [...prev, cat]);
-    setProducts((prev: any) => ({ ...prev, [id]: [] }));
-    setNewCat({ name: '', description: '', img: '', color: '#e91e63' });
   };
 
-  const removeCat = (id: string) => {
-    if (confirm('¿Estás seguro de eliminar esta categoría y todos sus productos?')) {
-      setCategories((prev: any) => prev.filter((c: any) => c.id !== id));
-      setProducts((prev: any) => {
+  const syncRemoveCategory = async (id: string) => {
+    if(!confirm('¿Eliminar esta categoría y todos sus productos?')) return;
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (!error) {
+      setCategories(prev => prev.filter(c => c.id !== id));
+      setProducts(prev => {
         const copy = { ...prev };
         delete copy[id];
         return copy;
@@ -407,35 +313,308 @@ const AdminCats = ({ categories, setCategories, setProducts }: any) => {
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const base64 = await fileToBase64(e.target.files[0]);
-      setNewCat({ ...newCat, img: base64 });
+  const syncAddProduct = async (catId: string, prod: any) => {
+    const dbProd = {
+      id: Date.now().toString(),
+      category_id: catId,
+      name: prod.name,
+      description: prod.description,
+      price: prod.price,
+      media_url: prod.mediaUrl,
+      media_type: prod.mediaType,
+      sizes: prod.sizes
+    };
+    const { error } = await supabase.from('products').insert([dbProd]);
+    if (!error) {
+      setProducts(prev => ({
+        ...prev,
+        [catId]: [...(prev[catId] || []), { ...prod, id: dbProd.id, category_id: catId }]
+      }));
     }
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-        <h4 className="font-bold mb-4 text-gray-700">Nueva Categoría</h4>
-        <input value={newCat.name} onChange={e => setNewCat({...newCat, name: e.target.value})} className="w-full p-2 border border-gray-300 rounded mb-2 text-sm bg-white text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Nombre (ej: Vestidos)" />
-        <textarea value={newCat.description} onChange={e => setNewCat({...newCat, description: e.target.value})} className="w-full p-2 border border-gray-300 rounded mb-2 text-sm bg-white text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Descripción" />
-        <div className="mb-2">
-          <label className="text-xs font-bold text-gray-400 block mb-1 uppercase tracking-wider">Imagen de fondo</label>
-          <input type="file" accept="image/*" onChange={handleFileChange} className="w-full text-xs text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-          {newCat.img && <img src={newCat.img} className="w-full h-20 object-cover mt-2 rounded border border-gray-200" />}
-        </div>
-        <input type="color" value={newCat.color} onChange={e => setNewCat({...newCat, color: e.target.value})} className="w-full h-10 mb-4 cursor-pointer" title="Color de la categoría" />
-        <button onClick={addCat} className="w-full bg-green-600 text-white py-2 rounded font-bold shadow-md hover:bg-green-700 transition-colors">Agregar Categoría</button>
+  const syncRemoveProduct = async (catId: string, prodId: string) => {
+    if(!confirm('¿Eliminar este producto?')) return;
+    const { error } = await supabase.from('products').delete().eq('id', prodId);
+    if (!error) {
+      setProducts(prev => ({
+        ...prev,
+        [catId]: prev[catId].filter(p => p.id !== prodId)
+      }));
+    }
+  };
+
+  const syncUpdateSettings = async (newSettings: SiteSettings) => {
+    const { error } = await supabase.from('settings').update({ data: newSettings }).eq('id', 'site_config');
+    if (!error) setSettings(newSettings);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="h-screen flex flex-col items-center justify-center bg-white">
+        <div className="w-16 h-16 border-4 border-pink-100 border-t-pink-600 rounded-full animate-spin mb-4"></div>
+        <p className="text-pink-600 font-bold animate-pulse">Cargando Tus Curvas Lindas...</p>
       </div>
-      <div className="space-y-2">
-        {categories.map((c: any) => (
-          <div key={c.id} className="flex items-center justify-between p-3 bg-white border border-gray-100 rounded shadow-sm hover:border-gray-200 transition-colors">
-            <div className="flex items-center gap-3">
-              <img src={c.img} className="w-8 h-8 object-cover rounded shadow-sm" />
-              <span className="font-medium text-sm text-gray-700">{c.name}</span>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-white">
+      {/* Header */}
+      <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 transition-all">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+          <div className="flex items-center gap-3 group cursor-pointer" onClick={() => setActiveTab('all')}>
+            <div className="w-10 h-10 bg-pink-600 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-pink-200">
+               <i className="fas fa-crown text-xl"></i>
             </div>
-            <button onClick={() => removeCat(c.id)} className="text-red-500 text-xs font-bold hover:underline uppercase">Eliminar</button>
+            <div className="flex flex-col">
+              <span className="text-lg font-black tracking-tight leading-none text-gray-800">{settings.name}</span>
+              <span className="text-[10px] uppercase font-bold text-pink-500 tracking-widest">Premium Fashion</span>
+            </div>
+          </div>
+          
+          <div className="flex items-center gap-4">
+            {isAdmin ? (
+              <div className="hidden md:flex items-center gap-2 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                <div className="w-2 h-2 bg-indigo-600 rounded-full animate-pulse"></div>
+                <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-tighter">Admin Activo</span>
+                <button onClick={handleLogout} className="text-[10px] text-indigo-400 hover:text-indigo-800 ml-2">Salir</button>
+              </div>
+            ) : (
+              <button onClick={() => setIsLoginOpen(true)} className="text-gray-400 hover:text-pink-600 transition-colors">
+                <i className="fas fa-user-circle text-2xl"></i>
+              </button>
+            )}
+            
+            <button onClick={() => setIsCartOpen(true)} className="relative group p-2 rounded-xl hover:bg-pink-50 transition-colors">
+              <i className="fas fa-shopping-bag text-2xl text-pink-600"></i>
+              {cart.length > 0 && (
+                <span className="absolute top-1 right-1 bg-pink-600 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black ring-4 ring-white group-hover:scale-110 transition-transform">
+                  {cart.reduce((acc, item) => acc + item.quantity, 0)}
+                </span>
+              )}
+            </button>
+          </div>
+        </div>
+        
+        {/* Categorías Slider */}
+        <div className="max-w-7xl mx-auto px-4 border-t border-gray-50 flex gap-4 py-3 overflow-x-auto no-scrollbar scroll-smooth">
+          <button 
+            onClick={() => setActiveTab('all')}
+            className={`px-5 py-2 rounded-2xl whitespace-nowrap text-xs font-black transition-all ${activeTab === 'all' ? 'bg-pink-600 text-white shadow-lg shadow-pink-200 scale-105' : 'bg-gray-50 text-gray-400 border border-gray-100 hover:bg-pink-50'}`}
+          >TODOS</button>
+          {categories.map(cat => (
+            <button 
+              key={cat.id}
+              onClick={() => setActiveTab(cat.id)}
+              className={`px-5 py-2 rounded-2xl whitespace-nowrap text-xs font-black transition-all border ${activeTab === cat.id ? 'text-white shadow-lg scale-105' : 'bg-white text-gray-400 border-gray-100 hover:border-pink-200'}`}
+              style={{ 
+                backgroundColor: activeTab === cat.id ? cat.color : undefined,
+                boxShadow: activeTab === cat.id ? `0 10px 15px -3px ${cat.color}44` : undefined,
+                borderColor: activeTab === cat.id ? cat.color : undefined
+              }}
+            >{cat.name.toUpperCase()}</button>
+          ))}
+        </div>
+      </header>
+
+      {/* Hero */}
+      <section className="relative h-[450px] md:h-[550px] overflow-hidden">
+        <div 
+          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 transform scale-105 hover:scale-100"
+          style={{ 
+            backgroundImage: `url(${activeTab === 'all' ? (settings.heroTitle.startsWith('data:') ? settings.heroTitle : 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600') : (categories.find(c => c.id === activeTab)?.img || '')})`,
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        <div className="absolute inset-0 flex items-center justify-center text-center p-6">
+          <div className="max-w-3xl animate-in fade-in slide-in-from-bottom-10 duration-700">
+            <h1 className="text-5xl md:text-7xl font-black text-white mb-6 drop-shadow-2xl tracking-tighter italic">
+              {activeTab === 'all' ? settings.heroTitle : (categories.find(c => c.id === activeTab)?.name)}
+            </h1>
+            <p className="text-lg md:text-xl text-white/90 font-medium max-w-xl mx-auto drop-shadow-lg leading-relaxed">
+              {activeTab === 'all' ? settings.heroDescription : (categories.find(c => c.id === activeTab)?.description)}
+            </p>
+            {activeTab === 'all' && (
+              <button 
+                onClick={() => document.getElementById('main-grid')?.scrollIntoView({ behavior: 'smooth' })}
+                className="mt-10 bg-white text-pink-600 px-10 py-4 rounded-full font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-110 active:scale-95 transition-all"
+              >
+                Ver Colección
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Main Content */}
+      <main id="main-grid" className="max-w-7xl mx-auto px-4 py-20">
+        <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
+          <div>
+            <span className="text-pink-600 font-black text-xs uppercase tracking-widest mb-2 block">Top Ventas</span>
+            <h2 className="text-4xl font-black text-gray-900 tracking-tighter">
+              {activeTab === 'all' ? 'Nuestras Piezas Clave' : `Colección ${categories.find(c => c.id === activeTab)?.name}`}
+            </h2>
+          </div>
+          <div className="text-gray-400 text-sm font-medium">
+             Mostrando {activeTab === 'all' ? Object.values(products).flat().length : products[activeTab]?.length || 0} artículos
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-8">
+          {(activeTab === 'all' ? Object.values(products).flat() : products[activeTab] || []).map(prod => (
+            <ProductCard key={prod.id} product={prod} onAdd={addToCart} />
+          ))}
+        </div>
+        
+        {(!products[activeTab] || products[activeTab].length === 0) && activeTab !== 'all' && (
+          <div className="py-20 text-center border-2 border-dashed border-gray-100 rounded-[40px]">
+            <i className="fas fa-search text-gray-200 text-5xl mb-4"></i>
+            <p className="text-gray-400 font-bold">Próximamente nuevos ingresos en esta sección.</p>
+          </div>
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 text-white py-20">
+        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-3 gap-12">
+          <div>
+            <h3 className="text-2xl font-black mb-6 italic tracking-tighter">{settings.name}</h3>
+            <p className="text-gray-400 text-sm leading-relaxed mb-6">
+              Empresa líder en delivery de moda premium. Llevamos las tendencias internacionales a tu puerta en tiempo récord.
+            </p>
+            <div className="flex gap-4">
+               <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-pink-600 transition-colors"><i className="fab fa-instagram"></i></a>
+               <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-blue-600 transition-colors"><i className="fab fa-facebook-f"></i></a>
+               <a href="#" className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center hover:bg-pink-400 transition-colors"><i className="fab fa-tiktok"></i></a>
+            </div>
+          </div>
+          <div>
+            <h4 className="font-bold mb-6 uppercase text-xs tracking-widest text-pink-500">Enlaces Rápidos</h4>
+            <ul className="space-y-4 text-sm text-gray-400">
+               <li><a href="#" className="hover:text-white transition-colors">Política de Cambios</a></li>
+               <li><a href="#" className="hover:text-white transition-colors">Tiempos de Envío</a></li>
+               <li><a href="#" className="hover:text-white transition-colors">Guía de Tallas</a></li>
+               <li><a href="#" className="hover:text-white transition-colors">Trabaja con nosotros</a></li>
+            </ul>
+          </div>
+          <div>
+            <h4 className="font-bold mb-6 uppercase text-xs tracking-widest text-pink-500">Contáctanos</h4>
+            <p className="text-sm text-gray-400 mb-2">WhatsApp de Atención:</p>
+            <p className="text-xl font-black text-white mb-6">{settings.whatsapp}</p>
+            <div className="bg-gray-800 p-4 rounded-2xl flex items-center gap-4">
+               <i className="fas fa-headset text-2xl text-pink-500"></i>
+               <div>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase">Soporte 24/7</p>
+                  <p className="text-xs">Chat en vivo disponible</p>
+               </div>
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 border-t border-gray-800 mt-20 pt-8 text-center text-[10px] text-gray-600 font-bold tracking-widest">
+           &copy; {new Date().getFullYear()} {settings.name} | POWERED BY SUPABASE
+        </div>
+      </footer>
+
+      {/* Floating Admin Button */}
+      {isAdmin && (
+        <button 
+          onClick={() => setIsAdminPanelOpen(true)} 
+          className="fixed bottom-6 left-6 w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl shadow-2xl hover:scale-110 active:rotate-45 transition-all z-[90] animate-bounce"
+        >
+          <i className="fas fa-plus"></i>
+        </button>
+      )}
+
+      {/* Modales */}
+      {isLoginOpen && <LoginModal onLogin={handleLogin} onClose={() => setIsLoginOpen(false)} />}
+      {isAdminPanelOpen && (
+        <AdminPanel 
+          onClose={() => setIsAdminPanelOpen(false)} 
+          categories={categories} 
+          syncAddCategory={syncAddCategory}
+          syncRemoveCategory={syncRemoveCategory}
+          products={products}
+          syncAddProduct={syncAddProduct}
+          syncRemoveProduct={syncRemoveProduct}
+          settings={settings}
+          syncUpdateSettings={syncUpdateSettings}
+        />
+      )}
+      {isCartOpen && <CartSidebar cart={cart} updateQuantity={updateQuantity} checkout={checkout} onClose={() => setIsCartOpen(false)} />}
+    </div>
+  );
+};
+
+// --- Componentes Administrativos ---
+
+const AdminPanel = ({ onClose, categories, syncAddCategory, syncRemoveCategory, products, syncAddProduct, syncRemoveProduct, settings, syncUpdateSettings }: any) => {
+  const [tab, setTab] = useState('cats');
+  
+  return (
+    <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex justify-end">
+      <div className="w-full max-w-lg bg-white h-full flex flex-col shadow-2xl animate-slide-in">
+        <div className="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
+          <div>
+            <h2 className="text-xl font-black tracking-tight">Consola de Control</h2>
+            <p className="text-[10px] opacity-70 font-bold uppercase tracking-widest">Sincronizado con Supabase</p>
+          </div>
+          <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-white/10 transition-colors text-2xl">&times;</button>
+        </div>
+        <div className="flex border-b bg-gray-50">
+          <button onClick={() => setTab('cats')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest ${tab === 'cats' ? 'border-b-4 border-indigo-600 text-indigo-600 bg-white' : 'text-gray-400'}`}>Categorías</button>
+          <button onClick={() => setTab('prods')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest ${tab === 'prods' ? 'border-b-4 border-indigo-600 text-indigo-600 bg-white' : 'text-gray-400'}`}>Productos</button>
+          <button onClick={() => setTab('config')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest ${tab === 'config' ? 'border-b-4 border-indigo-600 text-indigo-600 bg-white' : 'text-gray-400'}`}>Ajustes</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar">
+          {tab === 'cats' && <AdminCats categories={categories} onAdd={syncAddCategory} onRemove={syncRemoveCategory} />}
+          {tab === 'prods' && <AdminProds categories={categories} products={products} onAdd={syncAddProduct} onRemove={syncRemoveProduct} />}
+          {tab === 'config' && <AdminSettings settings={settings} onUpdate={syncUpdateSettings} />}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const AdminCats = ({ categories, onAdd, onRemove }: any) => {
+  const [newCat, setNewCat] = useState({ name: '', description: '', img: '', color: '#e91e63' });
+
+  return (
+    <div className="space-y-8">
+      <div className="bg-indigo-50 p-6 rounded-3xl border border-indigo-100 shadow-inner">
+        <h4 className="font-black text-xs uppercase tracking-widest text-indigo-800 mb-4">Nueva Sección</h4>
+        <div className="space-y-4">
+          <input value={newCat.name} onChange={e => setNewCat({...newCat, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm bg-white" placeholder="Nombre (ej: Vestidos)" />
+          <textarea value={newCat.description} onChange={e => setNewCat({...newCat, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm bg-white h-24" placeholder="Breve descripción del estilo" />
+          <div className="bg-white p-4 rounded-xl border border-dashed border-indigo-200">
+             <label className="text-[10px] font-black text-gray-400 uppercase block mb-2">Imagen de Portada</label>
+             <input type="file" onChange={async e => {
+               if (e.target.files?.[0]) setNewCat({...newCat, img: await fileToBase64(e.target.files[0])})
+             }} className="text-xs text-gray-400" />
+          </div>
+          <div className="flex items-center gap-4 bg-white p-3 rounded-xl border">
+             <label className="text-[10px] font-black text-gray-400 uppercase">Color distintivo:</label>
+             <input type="color" value={newCat.color} onChange={e => setNewCat({...newCat, color: e.target.value})} className="w-12 h-8 cursor-pointer rounded overflow-hidden" />
+          </div>
+          <button onClick={() => {onAdd(newCat); setNewCat({name:'', description:'', img:'', color:'#e91e63'})}} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-indigo-700 transition-all">Crear Categoría</button>
+        </div>
+      </div>
+      <div className="space-y-3">
+        <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[.2em]">Secciones actuales</h4>
+        {categories.map((c: any) => (
+          <div key={c.id} className="flex items-center justify-between p-4 bg-white border border-gray-100 rounded-2xl shadow-sm group hover:border-red-100 transition-colors">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-100 border shadow-sm">
+                 <img src={c.img} className="w-full h-full object-cover" />
+              </div>
+              <div>
+                <span className="font-bold text-sm text-gray-800">{c.name}</span>
+                <p className="text-[9px] text-gray-400 uppercase font-black tracking-widest">#{c.id}</p>
+              </div>
+            </div>
+            <button onClick={() => onRemove(c.id)} className="w-8 h-8 rounded-full flex items-center justify-center text-gray-200 hover:bg-red-50 hover:text-red-500 transition-all">
+              <i className="fas fa-trash-alt text-xs"></i>
+            </button>
           </div>
         ))}
       </div>
@@ -443,149 +622,141 @@ const AdminCats = ({ categories, setCategories, setProducts }: any) => {
   );
 };
 
-const AdminProds = ({ categories, products, setProducts }: any) => {
+const AdminProds = ({ categories, products, onAdd, onRemove }: any) => {
   const [selectedCat, setSelectedCat] = useState('');
-  const [newProd, setNewProd] = useState<Partial<Product>>({ name: '', description: '', price: 0, mediaType: 'image', mediaUrl: '', sizes: [] });
-
-  const addProd = () => {
-    if (!selectedCat || !newProd.name || !newProd.mediaUrl) {
-      alert('Por favor completa todos los campos y carga un archivo');
-      return;
-    }
-    const prod = { ...newProd, id: Date.now().toString() } as Product;
-    setProducts((prev: any) => ({
-      ...prev,
-      [selectedCat]: [...(prev[selectedCat] || []), prod]
-    }));
-    setNewProd({ name: '', description: '', price: 0, mediaType: 'image', mediaUrl: '', sizes: [] });
-  };
-
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const base64 = await fileToBase64(e.target.files[0]);
-      setNewProd({ ...newProd, mediaUrl: base64 });
-    }
-  };
+  const [newProd, setNewProd] = useState({ name: '', description: '', price: 0, mediaType: 'image', mediaUrl: '', sizes: [] as string[] });
 
   return (
-    <div className="space-y-6">
-      <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)} className="w-full p-2 border border-gray-300 rounded font-medium bg-white text-gray-700 focus:ring-2 focus:ring-indigo-500 outline-none">
-        <option value="">Seleccionar Categoría...</option>
-        {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
-      </select>
+    <div className="space-y-8">
+      <div className="flex flex-col gap-2">
+        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Seleccionar Colección</label>
+        <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)} className="w-full p-4 border rounded-2xl bg-gray-50 text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-indigo-500/20">
+          <option value="">-- Elige una categoría --</option>
+          {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
+        </select>
+      </div>
       
       {selectedCat && (
-        <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-          <h4 className="font-bold mb-4 text-gray-700">Nuevo Producto</h4>
-          <input value={newProd.name} onChange={e => setNewProd({...newProd, name: e.target.value})} className="w-full p-2 border border-gray-300 rounded mb-2 text-sm bg-white text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Nombre" />
-          <textarea value={newProd.description} onChange={e => setNewProd({...newProd, description: e.target.value})} className="w-full p-2 border border-gray-300 rounded mb-2 text-sm bg-white text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Descripción" />
-          <input type="number" value={newProd.price} onChange={e => setNewProd({...newProd, price: parseFloat(e.target.value)})} className="w-full p-2 border border-gray-300 rounded mb-2 text-sm bg-white text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Precio" />
-          <input value={newProd.sizes?.join(', ')} onChange={e => setNewProd({...newProd, sizes: e.target.value.split(',').map(s => s.trim()).filter(s => s)})} className="w-full p-2 border border-gray-300 rounded mb-2 text-sm bg-white text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="Tallas (S, M, L...)" />
-          <div className="flex gap-4 mb-2">
-            <label className="text-xs font-bold text-gray-600 flex items-center gap-1 cursor-pointer"><input type="radio" checked={newProd.mediaType === 'image'} onChange={() => setNewProd({...newProd, mediaType: 'image'})} /> Imagen</label>
-            <label className="text-xs font-bold text-gray-600 flex items-center gap-1 cursor-pointer"><input type="radio" checked={newProd.mediaType === 'video'} onChange={() => setNewProd({...newProd, mediaType: 'video'})} /> Video</label>
-          </div>
-          <div className="mb-4">
-            <label className="text-xs font-bold text-gray-400 block mb-1 uppercase tracking-wider">Cargar Archivo</label>
-            <input type="file" accept={newProd.mediaType === 'image' ? "image/*" : "video/*"} onChange={handleFileChange} className="w-full text-xs text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-            {newProd.mediaUrl && (
-              newProd.mediaType === 'image' ? 
-                <img src={newProd.mediaUrl} className="w-full h-20 object-cover mt-2 rounded border border-gray-200 shadow-sm" /> :
-                <video src={newProd.mediaUrl} className="w-full h-20 object-cover mt-2 rounded border border-gray-200 shadow-sm" controls />
-            )}
-          </div>
-          <button onClick={addProd} className="w-full bg-indigo-600 text-white py-2 rounded font-bold shadow-md hover:bg-indigo-700 transition-colors">Agregar Producto</button>
-        </div>
-      )}
-
-      {selectedCat && products[selectedCat] && (
-        <div className="grid grid-cols-2 gap-3">
-          {products[selectedCat].map((p: Product) => (
-            <div key={p.id} className="p-2 border border-gray-100 rounded text-[10px] bg-white shadow-sm hover:shadow-md transition-shadow">
-              {p.mediaType === 'image' ? 
-                <img src={p.mediaUrl} className="w-full h-16 object-cover mb-1 rounded shadow-sm" alt="" /> :
-                <video src={p.mediaUrl} className="w-full h-16 object-cover mb-1 rounded shadow-sm" />
-              }
-              <p className="font-bold text-gray-800 truncate">{p.name}</p>
-              <button onClick={() => {
-                if(confirm('¿Eliminar producto?')) {
-                  setProducts((prev: any) => ({ ...prev, [selectedCat]: prev[selectedCat].filter((item: any) => item.id !== p.id) }));
-                }
-              }} className="text-red-500 font-bold hover:underline uppercase mt-1">Eliminar</button>
+        <div className="bg-green-50 p-6 rounded-3xl border border-green-100">
+          <h4 className="font-black text-xs uppercase tracking-widest text-green-800 mb-6">Nuevo Ingreso</h4>
+          <div className="space-y-4">
+            <input value={newProd.name} onChange={e => setNewProd({...newProd, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm bg-white" placeholder="Nombre de la prenda" />
+            <textarea value={newProd.description} onChange={e => setNewProd({...newProd, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm bg-white h-24" placeholder="Detalles, materiales, fit..." />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                 <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Precio</label>
+                 <input type="number" value={newProd.price} onChange={e => setNewProd({...newProd, price: parseFloat(e.target.value)})} className="w-full p-3 border rounded-xl text-sm bg-white font-bold" placeholder="0.00" />
+              </div>
+              <div className="space-y-1">
+                 <label className="text-[10px] font-black text-gray-400 uppercase ml-1">Tallas</label>
+                 <input value={newProd.sizes.join(', ')} onChange={e => setNewProd({...newProd, sizes: e.target.value.split(',').map(s => s.trim()).filter(s => s)})} className="w-full p-3 border rounded-xl text-sm bg-white font-bold" placeholder="S, M, L..." />
+              </div>
             </div>
-          ))}
+            <div className="bg-white p-4 rounded-xl border border-dashed border-green-200">
+               <label className="text-[10px] font-black text-gray-400 uppercase block mb-2">Archivo Multimedia</label>
+               <input type="file" onChange={async e => {
+                 if (e.target.files?.[0]) {
+                   const file = e.target.files[0];
+                   setNewProd({...newProd, mediaUrl: await fileToBase64(file), mediaType: file.type.startsWith('video') ? 'video' : 'image'})
+                 }
+               }} className="text-xs text-gray-400" />
+            </div>
+            <button onClick={() => {onAdd(selectedCat, newProd); setNewProd({name:'', description:'', price:0, mediaType:'image', mediaUrl:'', sizes:[]})}} className="w-full bg-green-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg hover:bg-green-700 transition-all">Subir Producto</button>
+          </div>
+        </div>
+      )}
+
+      {selectedCat && (
+        <div className="space-y-3">
+          <h4 className="text-[10px] font-black text-gray-300 uppercase tracking-[.2em]">Inventario Actual</h4>
+          {products[selectedCat]?.length ? products[selectedCat].map((p: any) => (
+            <div key={p.id} className="flex items-center justify-between p-3 bg-white border border-gray-50 rounded-2xl group hover:border-red-50 transition-all">
+              <div className="flex items-center gap-4">
+                <img src={p.mediaUrl} className="w-12 h-16 object-cover rounded-lg shadow-sm" />
+                <div>
+                   <p className="text-sm font-bold text-gray-800">{p.name}</p>
+                   <p className="text-[10px] font-black text-pink-600 tracking-tighter">${p.price.toLocaleString()}</p>
+                </div>
+              </div>
+              <button onClick={() => onRemove(selectedCat, p.id)} className="w-10 h-10 rounded-full flex items-center justify-center text-gray-200 hover:text-red-500 transition-colors">
+                <i className="fas fa-trash-alt text-xs"></i>
+              </button>
+            </div>
+          )) : <p className="text-center py-10 text-xs text-gray-300 font-bold italic">No hay productos en esta categoría.</p>}
         </div>
       )}
     </div>
   );
 };
 
-const AdminSettings = ({ settings, setSettings }: any) => {
-  const handleLogoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const base64 = await fileToBase64(e.target.files[0]);
-      setSettings({ ...settings, logo: base64 });
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Nombre del Sitio</label>
-        <input value={settings.name} onChange={e => setSettings({...settings, name: e.target.value})} className="w-full p-2 border border-gray-300 rounded text-sm bg-white text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
-      </div>
-      <div>
-        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Título de Pestaña</label>
-        <input value={settings.title} onChange={e => setSettings({...settings, title: e.target.value})} className="w-full p-2 border border-gray-300 rounded text-sm bg-white text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
-      </div>
-      <div>
-        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">WhatsApp Pedidos</label>
-        <input value={settings.whatsapp} onChange={e => setSettings({...settings, whatsapp: e.target.value})} className="w-full p-2 border border-gray-300 rounded text-sm bg-white text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none" placeholder="+57..." />
-      </div>
-      <div>
-        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Color Principal</label>
-        <input type="color" value={settings.primaryColor} onChange={e => setSettings({...settings, primaryColor: e.target.value})} className="w-full h-10 border border-gray-300 rounded p-1 cursor-pointer bg-white" />
-      </div>
-      <div>
-        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Logo del Sitio</label>
-        <input type="file" accept="image/*" onChange={handleLogoChange} className="w-full text-xs text-gray-600 mb-2 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" />
-        {settings.logo && <img src={settings.logo} className="w-16 h-16 object-contain rounded border border-gray-200 p-1 bg-white shadow-sm" />}
-      </div>
-      <div className="pt-4 border-t border-gray-200">
-        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Hero Título</label>
-        <input value={settings.heroTitle} onChange={e => setSettings({...settings, heroTitle: e.target.value})} className="w-full p-2 border border-gray-300 rounded text-sm mb-2 bg-white text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
-        <label className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Hero Descripción</label>
-        <textarea value={settings.heroDescription} onChange={e => setSettings({...settings, heroDescription: e.target.value})} className="w-full p-2 border border-gray-300 rounded text-sm h-24 bg-white text-gray-800 focus:ring-2 focus:ring-indigo-500 outline-none" />
+const AdminSettings = ({ settings, onUpdate }: any) => (
+  <div className="space-y-8">
+    <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+      <h4 className="font-black text-xs uppercase tracking-widest text-gray-700 mb-6">Identidad Visual</h4>
+      <div className="space-y-6">
+        <div>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nombre Comercial</label>
+          <input value={settings.name} onChange={e => onUpdate({...settings, name: e.target.value})} className="w-full p-4 border rounded-2xl text-sm bg-white font-bold" />
+        </div>
+        <div>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Enlace WhatsApp</label>
+          <input value={settings.whatsapp} onChange={e => onUpdate({...settings, whatsapp: e.target.value})} className="w-full p-4 border rounded-2xl text-sm bg-white font-bold" placeholder="+57 319..." />
+        </div>
+        <div className="flex items-center gap-6 bg-white p-4 rounded-2xl border">
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Color Primario</label>
+            <span className="text-[9px] text-gray-300 font-bold">{settings.primaryColor}</span>
+          </div>
+          <input type="color" value={settings.primaryColor} onChange={e => onUpdate({...settings, primaryColor: e.target.value})} className="w-16 h-10 border-0 rounded cursor-pointer outline-none" />
+        </div>
       </div>
     </div>
-  );
-};
+    
+    <div className="bg-indigo-900 text-white p-6 rounded-3xl border border-indigo-950 shadow-xl">
+      <h4 className="font-black text-xs uppercase tracking-widest text-indigo-300 mb-6">Mensaje Principal (Hero)</h4>
+      <div className="space-y-6">
+        <div>
+          <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Título de Impacto</label>
+          <input value={settings.heroTitle} onChange={e => onUpdate({...settings, heroTitle: e.target.value})} className="w-full p-4 border border-indigo-800 rounded-2xl text-sm bg-indigo-950 text-white outline-none focus:ring-2 focus:ring-pink-500/50" />
+        </div>
+        <div>
+          <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Bajada / Descripción</label>
+          <textarea value={settings.heroDescription} onChange={e => onUpdate({...settings, heroDescription: e.target.value})} className="w-full p-4 border border-indigo-800 rounded-2xl text-sm bg-indigo-950 text-white h-32 outline-none focus:ring-2 focus:ring-pink-500/50" />
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 const LoginModal = ({ onLogin, onClose }: any) => {
   const [pass, setPass] = useState('');
   return (
-    <div className="fixed inset-0 z-[200] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
-      <div className="bg-white p-8 rounded-2xl w-full max-w-sm shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-        <h2 className="text-2xl font-bold mb-2 text-gray-800">Administración</h2>
-        <p className="text-sm text-gray-500 mb-6">Ingresa la contraseña para gestionar el sitio.</p>
+    <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
+      <div className="bg-white p-10 rounded-[40px] w-full max-w-sm shadow-2xl scale-100 animate-in zoom-in-95 duration-300">
+        <div className="flex flex-col items-center mb-10">
+          <div className="w-20 h-20 bg-pink-50 text-pink-600 rounded-3xl flex items-center justify-center text-4xl mb-6 shadow-inner rotate-3 hover:rotate-0 transition-transform">
+            <i className="fas fa-shield-alt"></i>
+          </div>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tighter">Acceso Staff</h2>
+          <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-2">Solo personal autorizado</p>
+        </div>
         <input 
           type="password" 
           value={pass} 
-          onChange={e => setPass(e.target.value)}
+          onChange={e => setPass(e.target.value)} 
           onKeyDown={e => e.key === 'Enter' && onLogin(pass)}
-          className="w-full p-3 border-2 border-gray-100 rounded-xl focus:border-indigo-500 outline-none mb-4 text-gray-800 bg-white shadow-inner" 
-          placeholder="Contraseña"
-          autoFocus
+          className="w-full p-5 border-2 border-gray-100 rounded-[20px] mb-8 bg-gray-50 focus:border-pink-600 outline-none text-center text-2xl tracking-[0.4em] text-gray-800 transition-all font-black shadow-inner" 
+          placeholder="••••" 
+          autoFocus 
         />
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 py-3 text-gray-400 font-bold hover:text-gray-600 transition-colors">Cancelar</button>
-          <button onClick={() => onLogin(pass)} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold shadow-lg hover:bg-indigo-700 transition-colors">Entrar</button>
+        <div className="flex gap-4">
+          <button onClick={onClose} className="flex-1 py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600 transition-colors">Cancelar</button>
+          <button onClick={() => onLogin(pass)} className="flex-1 py-4 bg-pink-600 text-white rounded-[20px] font-black text-[10px] uppercase tracking-widest shadow-xl shadow-pink-200 hover:scale-105 active:scale-95 transition-all">Ingresar</button>
         </div>
       </div>
     </div>
   );
 };
 
-// --- Render ---
 const root = createRoot(document.getElementById('root')!);
 root.render(<App />);
