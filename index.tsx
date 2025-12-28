@@ -72,23 +72,25 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
         </div>
       </div>
       <div className="p-4 flex flex-col flex-1">
-        <h3 className="font-bold text-gray-800 mb-1 line-clamp-1">{product.name}</h3>
+        <h3 className="font-bold text-gray-800 mb-1 line-clamp-1 uppercase">{product.name}</h3>
         <p className="text-gray-400 text-[11px] mb-3 line-clamp-2 leading-tight h-8">{product.description}</p>
         
         <div className="mt-auto">
-          <div className="mb-4">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Talla disponible</span>
-            <div className="flex flex-wrap gap-1">
-              {product.sizes?.map(s => (
-                <button 
-                  key={s} 
-                  onClick={() => setSelectedSize(s)}
-                  className={`text-[10px] min-w-[32px] h-8 flex items-center justify-center border rounded-lg font-medium transition-colors ${selectedSize === s ? 'text-white' : 'border-gray-200 text-gray-500 hover:border-gray-300 bg-white'}`}
-                  style={{ backgroundColor: selectedSize === s ? primaryColor : undefined, borderColor: selectedSize === s ? primaryColor : undefined }}
-                >{s}</button>
-              ))}
+          {product.sizes && product.sizes.length > 0 && product.sizes[0] !== 'Única' && (
+            <div className="mb-4">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Talla disponible</span>
+              <div className="flex flex-wrap gap-1">
+                {product.sizes.map(s => (
+                  <button 
+                    key={s} 
+                    onClick={() => setSelectedSize(s)}
+                    className={`text-[10px] min-w-[32px] h-8 flex items-center justify-center border rounded-lg font-medium transition-colors ${selectedSize === s ? 'text-white' : 'border-gray-200 text-gray-500 hover:border-gray-300 bg-white'}`}
+                    style={{ backgroundColor: selectedSize === s ? primaryColor : undefined, borderColor: selectedSize === s ? primaryColor : undefined }}
+                  >{s}</button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
           
           <div className="flex items-center justify-between pt-3 border-t border-gray-50">
             <span className="font-black text-lg" style={{ color: primaryColor }}>${Number(product.price).toLocaleString()}</span>
@@ -113,7 +115,7 @@ const CartSidebar = ({ cart, updateQuantity, checkout, onClose, primaryColor }: 
         <div className="p-6 border-b flex justify-between items-center bg-white">
           <div>
             <h2 className="text-2xl font-black text-gray-800">Mi Carrito</h2>
-            <p className="text-xs text-gray-400">{cart.length} artículos seleccionados</p>
+            <p className="text-xs text-gray-400">{cart.length} artículos</p>
           </div>
           <button onClick={onClose} className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-2xl text-gray-400">&times;</button>
         </div>
@@ -121,9 +123,7 @@ const CartSidebar = ({ cart, updateQuantity, checkout, onClose, primaryColor }: 
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-300 py-20">
-              <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center mb-4">
-                <i className="fas fa-shopping-bag text-3xl opacity-20"></i>
-              </div>
+              <i className="fas fa-shopping-bag text-5xl opacity-10 mb-4"></i>
               <p className="font-medium">Tu carrito está vacío</p>
               <button onClick={onClose} className="mt-4 font-bold text-sm underline" style={{ color: primaryColor }}>Seguir comprando</button>
             </div>
@@ -164,7 +164,6 @@ const CartSidebar = ({ cart, updateQuantity, checkout, onClose, primaryColor }: 
           >
             <i className="fab fa-whatsapp text-xl"></i> PEDIR POR WHATSAPP
           </button>
-          <p className="text-[10px] text-center text-gray-400 mt-4 px-4 leading-tight">Serás redirigido a WhatsApp para coordinar el pago y la entrega.</p>
         </div>
       </div>
     </div>
@@ -193,7 +192,7 @@ const App = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 1. Cargar Datos desde Supabase
+  // Cargar datos iniciales
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -288,20 +287,28 @@ const App = () => {
     window.location.href = `https://wa.me/${settings.whatsapp.replace(/\+/g, '').replace(/\s/g, '')}?text=${encodeURIComponent(msg)}`;
   };
 
+  // --- Sincronización Supabase ---
   const syncAddCategory = async (newCat: any) => {
+    if (!newCat.name) return alert('La categoría debe tener un nombre.');
     const id = newCat.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '');
     const catData = { ...newCat, id, order: categories.length + 1 };
+    
     const { error } = await supabase.from('categories').insert([catData]);
-    if (!error) {
+    if (error) {
+      alert(`Error al crear categoría: ${error.message}. Verifica que RLS esté desactivado en Supabase.`);
+    } else {
       setCategories(prev => [...prev, catData]);
       setProducts(prev => ({ ...prev, [id]: [] }));
+      alert('Categoría creada exitosamente.');
     }
   };
 
   const syncRemoveCategory = async (id: string) => {
     if(!confirm('¿Eliminar esta categoría y todos sus productos?')) return;
     const { error } = await supabase.from('categories').delete().eq('id', id);
-    if (!error) {
+    if (error) {
+      alert(`Error al eliminar: ${error.message}`);
+    } else {
       setCategories(prev => prev.filter(c => c.id !== id));
       setProducts(prev => {
         const copy = { ...prev };
@@ -323,11 +330,14 @@ const App = () => {
       sizes: prod.sizes
     };
     const { error } = await supabase.from('products').insert([dbProd]);
-    if (!error) {
+    if (error) {
+      alert(`Error al subir producto: ${error.message}`);
+    } else {
       setProducts(prev => ({
         ...prev,
         [catId]: [...(prev[catId] || []), { ...prod, id: dbProd.id, category_id: catId }]
       }));
+      alert('Producto guardado correctamente.');
     }
   };
 
@@ -344,14 +354,19 @@ const App = () => {
 
   const syncUpdateSettings = async (newSettings: SiteSettings) => {
     const { error } = await supabase.from('settings').update({ data: newSettings }).eq('id', 'site_config');
-    if (!error) setSettings(newSettings);
+    if (error) {
+      alert(`Error al guardar ajustes: ${error.message}`);
+    } else {
+      setSettings(newSettings);
+      alert('Configuración actualizada en la nube.');
+    }
   };
 
   if (isLoading) {
     return (
       <div className="h-screen flex flex-col items-center justify-center bg-white">
         <div className="w-16 h-16 border-4 border-gray-100 border-t-pink-600 rounded-full animate-spin mb-4"></div>
-        <p className="text-pink-600 font-bold animate-pulse">Cargando...</p>
+        <p className="text-pink-600 font-bold animate-pulse">Cargando catálogo...</p>
       </div>
     );
   }
@@ -391,7 +406,7 @@ const App = () => {
             <button onClick={() => setIsCartOpen(true)} className="relative group p-2 rounded-xl transition-colors">
               <i className="fas fa-shopping-bag text-2xl" style={{ color: settings.primaryColor }}></i>
               {cart.length > 0 && (
-                <span className="absolute top-1 right-1 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black ring-4 ring-white group-hover:scale-110 transition-transform" style={{ backgroundColor: settings.primaryColor }}>
+                <span className="absolute top-1 right-1 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black ring-4 ring-white" style={{ backgroundColor: settings.primaryColor }}>
                   {cart.reduce((acc, item) => acc + item.quantity, 0)}
                 </span>
               )}
@@ -403,17 +418,16 @@ const App = () => {
         <div className="max-w-7xl mx-auto px-4 border-t border-gray-50 flex gap-4 py-3 overflow-x-auto no-scrollbar scroll-smooth">
           <button 
             onClick={() => setActiveTab('all')}
-            className={`px-5 py-2 rounded-2xl whitespace-nowrap text-xs font-black transition-all ${activeTab === 'all' ? 'text-white shadow-lg scale-105' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}
-            style={{ backgroundColor: activeTab === 'all' ? settings.primaryColor : undefined, boxShadow: activeTab === 'all' ? `0 10px 15px -3px ${settings.primaryColor}44` : undefined }}
+            className={`px-5 py-2 rounded-2xl whitespace-nowrap text-xs font-black transition-all ${activeTab === 'all' ? 'text-white shadow-lg' : 'bg-gray-50 text-gray-400 border border-gray-100'}`}
+            style={{ backgroundColor: activeTab === 'all' ? settings.primaryColor : undefined }}
           >TODOS</button>
           {categories.map(cat => (
             <button 
               key={cat.id}
               onClick={() => setActiveTab(cat.id)}
-              className={`px-5 py-2 rounded-2xl whitespace-nowrap text-xs font-black transition-all border ${activeTab === cat.id ? 'text-white shadow-lg scale-105' : 'bg-white text-gray-400 border-gray-100'}`}
+              className={`px-5 py-2 rounded-2xl whitespace-nowrap text-xs font-black transition-all border ${activeTab === cat.id ? 'text-white shadow-lg' : 'bg-white text-gray-400 border-gray-100'}`}
               style={{ 
                 backgroundColor: activeTab === cat.id ? cat.color : undefined,
-                boxShadow: activeTab === cat.id ? `0 10px 15px -3px ${cat.color}44` : undefined,
                 borderColor: activeTab === cat.id ? cat.color : undefined
               }}
             >{cat.name.toUpperCase()}</button>
@@ -424,14 +438,14 @@ const App = () => {
       {/* Hero */}
       <section className="relative h-[450px] md:h-[550px] overflow-hidden">
         <div 
-          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 transform scale-105"
+          className="absolute inset-0 bg-cover bg-center transition-all duration-1000 transform"
           style={{ 
             backgroundImage: `url(${activeTab === 'all' ? (settings.heroTitle.startsWith('data:') ? settings.heroTitle : 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600') : (categories.find(c => c.id === activeTab)?.img || '')})`,
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         <div className="absolute inset-0 flex items-center justify-center text-center p-6">
-          <div className="max-w-3xl animate-in fade-in slide-in-from-bottom-10 duration-700">
+          <div className="max-w-3xl">
             <h1 className="text-5xl md:text-7xl font-black text-white mb-6 drop-shadow-2xl tracking-tighter italic uppercase">
               {activeTab === 'all' ? settings.heroTitle : (categories.find(c => c.id === activeTab)?.name)}
             </h1>
@@ -441,7 +455,7 @@ const App = () => {
             {activeTab === 'all' && (
               <button 
                 onClick={() => document.getElementById('main-grid')?.scrollIntoView({ behavior: 'smooth' })}
-                className="mt-10 bg-white px-10 py-4 rounded-full font-black text-sm uppercase tracking-widest shadow-2xl hover:scale-110 active:scale-95 transition-all"
+                className="mt-10 bg-white px-10 py-4 rounded-full font-black text-sm uppercase shadow-2xl hover:scale-105 active:scale-95 transition-all"
                 style={{ color: settings.primaryColor }}
               >
                 Ver Colección
@@ -455,13 +469,13 @@ const App = () => {
       <main id="main-grid" className="max-w-7xl mx-auto px-4 py-20">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
           <div>
-            <span className="font-black text-xs uppercase tracking-widest mb-2 block" style={{ color: settings.primaryColor }}>Nuevos Ingresos</span>
+            <span className="font-black text-xs uppercase tracking-widest mb-2 block" style={{ color: settings.primaryColor }}>Artículos Premium</span>
             <h2 className="text-4xl font-black text-gray-900 tracking-tighter">
-              {activeTab === 'all' ? 'Nuestra Colección' : `Colección ${categories.find(c => c.id === activeTab)?.name}`}
+              {activeTab === 'all' ? 'Nueva Temporada' : `Colección ${categories.find(c => c.id === activeTab)?.name}`}
             </h2>
           </div>
           <div className="text-gray-400 text-sm font-medium">
-             {activeTab === 'all' ? Object.values(products).flat().length : products[activeTab]?.length || 0} modelos disponibles
+             {activeTab === 'all' ? Object.values(products).flat().length : products[activeTab]?.length || 0} productos
           </div>
         </div>
 
@@ -472,10 +486,10 @@ const App = () => {
         </div>
       </main>
 
-      {/* Panel Flotante Admin */}
+      {/* Admin Floating Button */}
       {isAdmin && (
-        <button onClick={() => setIsAdminPanelOpen(true)} className="fixed bottom-6 right-6 w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl shadow-2xl hover:scale-110 transition-transform z-[90] animate-bounce">
-          <i className="fas fa-tools"></i>
+        <button onClick={() => setIsAdminPanelOpen(true)} className="fixed bottom-6 left-6 w-16 h-16 bg-indigo-600 text-white rounded-full flex items-center justify-center text-2xl shadow-2xl z-[90] animate-pulse">
+          <i className="fas fa-cog"></i>
         </button>
       )}
 
@@ -499,25 +513,22 @@ const App = () => {
   );
 };
 
-// --- Componentes Administrativos ---
+// --- Panel de Administración ---
 
 const AdminPanel = ({ onClose, categories, syncAddCategory, syncRemoveCategory, products, syncAddProduct, syncRemoveProduct, settings, syncUpdateSettings }: any) => {
   const [tab, setTab] = useState('config');
   
   return (
     <div className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex justify-end">
-      <div className="w-full max-w-lg bg-white h-full flex flex-col shadow-2xl animate-slide-in">
+      <div className="w-full max-w-lg bg-white h-full flex flex-col shadow-2xl animate-slide-in overflow-hidden">
         <div className="p-6 border-b flex justify-between items-center bg-indigo-600 text-white">
-          <div>
-            <h2 className="text-xl font-black">Administración</h2>
-            <p className="text-[10px] opacity-70 font-bold uppercase tracking-widest">Panel de Control</p>
-          </div>
-          <button onClick={onClose} className="text-2xl hover:rotate-90 transition-transform">&times;</button>
+          <h2 className="text-xl font-black">Admin Panel</h2>
+          <button onClick={onClose} className="text-2xl">&times;</button>
         </div>
         <div className="flex border-b bg-gray-50">
-          <button onClick={() => setTab('cats')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest ${tab === 'cats' ? 'border-b-4 border-indigo-600 text-indigo-600 bg-white' : 'text-gray-400'}`}>Categorías</button>
-          <button onClick={() => setTab('prods')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest ${tab === 'prods' ? 'border-b-4 border-indigo-600 text-indigo-600 bg-white' : 'text-gray-400'}`}>Productos</button>
-          <button onClick={() => setTab('config')} className={`flex-1 py-4 text-[10px] font-black uppercase tracking-widest ${tab === 'config' ? 'border-b-4 border-indigo-600 text-indigo-600 bg-white' : 'text-gray-400'}`}>Ajustes</button>
+          <button onClick={() => setTab('cats')} className={`flex-1 py-4 text-[10px] font-black uppercase ${tab === 'cats' ? 'border-b-4 border-indigo-600 text-indigo-600' : 'text-gray-400'}`}>Categorías</button>
+          <button onClick={() => setTab('prods')} className={`flex-1 py-4 text-[10px] font-black uppercase ${tab === 'prods' ? 'border-b-4 border-indigo-600 text-indigo-600' : 'text-gray-400'}`}>Productos</button>
+          <button onClick={() => setTab('config')} className={`flex-1 py-4 text-[10px] font-black uppercase ${tab === 'config' ? 'border-b-4 border-indigo-600 text-indigo-600' : 'text-gray-400'}`}>Ajustes</button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar">
           {tab === 'cats' && <AdminCats categories={categories} onAdd={syncAddCategory} onRemove={syncRemoveCategory} />}
@@ -535,12 +546,12 @@ const AdminCats = ({ categories, onAdd, onRemove }: any) => {
   return (
     <div className="space-y-6">
       <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-        <h4 className="font-black text-xs uppercase tracking-widest text-gray-500 mb-4">Nueva Categoría</h4>
+        <h4 className="font-black text-xs uppercase tracking-widest text-gray-400 mb-4">Nueva Categoría</h4>
         <div className="space-y-4">
           <input value={newCat.name} onChange={e => setNewCat({...newCat, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="Nombre (ej: Vestidos)" />
           <textarea value={newCat.description} onChange={e => setNewCat({...newCat, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm h-20" placeholder="Descripción corta" />
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-bold text-gray-400 uppercase">Imagen Hero</label>
+            <label className="text-[10px] font-bold text-gray-400">Imagen Hero</label>
             <input type="file" onChange={async e => {
               if (e.target.files?.[0]) setNewCat({...newCat, img: await fileToBase64(e.target.files[0])})
             }} className="text-xs" />
@@ -549,17 +560,17 @@ const AdminCats = ({ categories, onAdd, onRemove }: any) => {
             <label className="text-xs font-bold text-gray-500">Color:</label>
             <input type="color" value={newCat.color} onChange={e => setNewCat({...newCat, color: e.target.value})} className="w-10 h-8 cursor-pointer" />
           </div>
-          <button onClick={() => {onAdd(newCat); setNewCat({name:'', description:'', img:'', color:'#e91e63'})}} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Crear Categoría</button>
+          <button onClick={() => onAdd(newCat)} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Añadir Categoría</button>
         </div>
       </div>
       <div className="space-y-2">
         {categories.map((c: any) => (
           <div key={c.id} className="flex items-center justify-between p-4 bg-white border rounded-2xl">
             <div className="flex items-center gap-3">
-              <div className="w-4 h-4 rounded-full" style={{backgroundColor: c.color}}></div>
+              <div className="w-4 h-4 rounded-full shadow-sm" style={{backgroundColor: c.color}}></div>
               <span className="font-bold text-sm text-gray-700">{c.name}</span>
             </div>
-            <button onClick={() => onRemove(c.id)} className="text-red-400 hover:text-red-600 p-2"><i className="fas fa-trash-alt"></i></button>
+            <button onClick={() => onRemove(c.id)} className="text-red-400 p-2"><i className="fas fa-trash-alt"></i></button>
           </div>
         ))}
       </div>
@@ -569,7 +580,14 @@ const AdminCats = ({ categories, onAdd, onRemove }: any) => {
 
 const AdminProds = ({ categories, products, onAdd, onRemove }: any) => {
   const [selectedCat, setSelectedCat] = useState('');
-  const [newProd, setNewProd] = useState({ name: '', description: '', price: 0, mediaType: 'image', mediaUrl: '', sizes: [] as string[] });
+  const [newProd, setNewProd] = useState({ 
+    name: '', 
+    description: '', 
+    price: 0, 
+    mediaType: 'image', 
+    mediaUrl: '', 
+    sizes: ['Única'] as string[] 
+  });
 
   return (
     <div className="space-y-6">
@@ -583,24 +601,23 @@ const AdminProds = ({ categories, products, onAdd, onRemove }: any) => {
           <input value={newProd.name} onChange={e => setNewProd({...newProd, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="Nombre" />
           <textarea value={newProd.description} onChange={e => setNewProd({...newProd, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm h-20" placeholder="Detalles" />
           <input type="number" value={newProd.price} onChange={e => setNewProd({...newProd, price: parseFloat(e.target.value)})} className="w-full p-3 border rounded-xl text-sm" placeholder="Precio ($)" />
-          <input value={newProd.sizes.join(', ')} onChange={e => setNewProd({...newProd, sizes: e.target.value.split(',').map(s => s.trim()).filter(s => s)})} className="w-full p-3 border rounded-xl text-sm" placeholder="Tallas (S, M, L...)" />
           <div className="flex flex-col gap-1">
-             <label className="text-[10px] font-bold text-gray-400 uppercase">Multimedia</label>
+             <label className="text-[10px] font-bold text-gray-400">Imagen/Video</label>
              <input type="file" onChange={async e => {
                if (e.target.files?.[0]) setNewProd({...newProd, mediaUrl: await fileToBase64(e.target.files[0]), mediaType: e.target.files[0].type.startsWith('video') ? 'video' : 'image'})
              }} className="text-xs" />
           </div>
-          <button onClick={() => {onAdd(selectedCat, newProd); setNewProd({name:'', description:'', price:0, mediaType:'image', mediaUrl:'', sizes:[]})}} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold shadow-lg">Subir Producto</button>
+          <button onClick={() => onAdd(selectedCat, newProd)} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">Añadir Producto</button>
         </div>
       )}
 
       {selectedCat && products[selectedCat]?.map((p: any) => (
-        <div key={p.id} className="flex items-center justify-between p-3 border-b group">
+        <div key={p.id} className="flex items-center justify-between p-3 border-b">
           <div className="flex items-center gap-3">
             <img src={p.mediaUrl} className="w-10 h-10 object-cover rounded shadow-sm" />
             <span className="text-xs font-bold text-gray-700">{p.name}</span>
           </div>
-          <button onClick={() => onRemove(selectedCat, p.id)} className="text-red-300 hover:text-red-500 p-2"><i className="fas fa-trash-alt"></i></button>
+          <button onClick={() => onRemove(selectedCat, p.id)} className="text-red-300"><i className="fas fa-trash-alt"></i></button>
         </div>
       ))}
     </div>
@@ -609,11 +626,6 @@ const AdminProds = ({ categories, products, onAdd, onRemove }: any) => {
 
 const AdminSettings = ({ settings, onUpdate }: { settings: SiteSettings, onUpdate: (s: SiteSettings) => void }) => {
   const [localSettings, setLocalSettings] = useState(settings);
-
-  const handleSave = () => {
-    onUpdate(localSettings);
-    alert('Ajustes guardados correctamente.');
-  };
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.[0]) {
@@ -625,67 +637,49 @@ const AdminSettings = ({ settings, onUpdate }: { settings: SiteSettings, onUpdat
   return (
     <div className="space-y-6">
       <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-5">
-        <h4 className="font-black text-xs uppercase tracking-widest text-gray-500">Configuración General</h4>
+        <h4 className="font-black text-xs uppercase text-gray-500">Configuración General</h4>
         
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Nombre Comercial</label>
+          <label className="text-[10px] font-black text-gray-400 uppercase">Nombre</label>
           <input value={localSettings.name} onChange={e => setLocalSettings({...localSettings, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm" />
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Título de la Página</label>
-          <input value={localSettings.title} onChange={e => setLocalSettings({...localSettings, title: e.target.value})} className="w-full p-3 border rounded-xl text-sm" />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Color Principal del Sitio</label>
+          <label className="text-[10px] font-black text-gray-400 uppercase">Color Principal</label>
           <div className="flex items-center gap-4 bg-white p-3 border rounded-xl">
             <input type="color" value={localSettings.primaryColor} onChange={e => setLocalSettings({...localSettings, primaryColor: e.target.value})} className="w-16 h-10 border-0 rounded cursor-pointer" />
-            <span className="text-xs font-mono font-bold text-gray-400">{localSettings.primaryColor}</span>
+            <span className="text-xs font-mono text-gray-400">{localSettings.primaryColor}</span>
           </div>
         </div>
 
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">WhatsApp de Pedidos</label>
-          <input value={localSettings.whatsapp} onChange={e => setLocalSettings({...localSettings, whatsapp: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="+57 319..." />
+          <label className="text-[10px] font-black text-gray-400 uppercase">WhatsApp</label>
+          <input value={localSettings.whatsapp} onChange={e => setLocalSettings({...localSettings, whatsapp: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="+57..." />
         </div>
 
         <div className="space-y-2">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Logo del Sitio</label>
+          <label className="text-[10px] font-black text-gray-400 uppercase">Logo</label>
           <div className="flex flex-col gap-3 p-4 bg-white border rounded-2xl items-center">
             {localSettings.logo ? (
-              <div className="relative group">
-                <img src={localSettings.logo} className="h-20 w-20 object-contain rounded" alt="Logo Preview" />
-                <button 
-                  onClick={() => setLocalSettings({...localSettings, logo: ''})} 
-                  className="absolute -top-2 -right-2 bg-red-500 text-white w-6 h-6 rounded-full flex items-center justify-center shadow-lg"
-                >&times;</button>
-              </div>
+              <img src={localSettings.logo} className="h-20 w-20 object-contain rounded" />
             ) : (
-              <div className="h-20 w-20 bg-gray-50 rounded-xl flex items-center justify-center text-gray-300 border-2 border-dashed border-gray-200">
+              <div className="h-20 w-20 bg-gray-50 border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300">
                 <i className="fas fa-image text-3xl"></i>
               </div>
             )}
             <input type="file" onChange={handleLogoUpload} className="text-xs" accept="image/*" />
+            <button onClick={() => setLocalSettings({...localSettings, logo: ''})} className="text-[10px] text-red-500 font-bold uppercase underline">Quitar Logo</button>
           </div>
         </div>
       </div>
 
-      <div className="bg-indigo-900 text-white p-6 rounded-3xl border border-indigo-950 space-y-5">
-        <h4 className="font-black text-xs uppercase tracking-widest text-indigo-300">Mensajes del Hero (Principal)</h4>
-        
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Título de Impacto</label>
-          <input value={localSettings.heroTitle} onChange={e => setLocalSettings({...localSettings, heroTitle: e.target.value})} className="w-full p-3 border border-indigo-800 rounded-xl text-sm bg-indigo-950 text-white outline-none" />
-        </div>
-
-        <div className="space-y-1">
-          <label className="text-[10px] font-black text-indigo-400 uppercase tracking-widest ml-1">Descripción / Bajada</label>
-          <textarea value={localSettings.heroDescription} onChange={e => setLocalSettings({...localSettings, heroDescription: e.target.value})} className="w-full p-3 border border-indigo-800 rounded-xl text-sm bg-indigo-950 text-white h-24 outline-none" />
-        </div>
+      <div className="bg-indigo-900 text-white p-6 rounded-3xl space-y-5">
+        <h4 className="font-black text-xs uppercase text-indigo-300">Textos Hero</h4>
+        <input value={localSettings.heroTitle} onChange={e => setLocalSettings({...localSettings, heroTitle: e.target.value})} className="w-full p-3 border border-indigo-800 rounded-xl text-sm bg-indigo-950 text-white" />
+        <textarea value={localSettings.heroDescription} onChange={e => setLocalSettings({...localSettings, heroDescription: e.target.value})} className="w-full p-3 border border-indigo-800 rounded-xl text-sm bg-indigo-950 text-white h-24" />
       </div>
 
-      <button onClick={handleSave} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition-all">Guardar Todos los Cambios</button>
+      <button onClick={() => onUpdate(localSettings)} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-indigo-700 transition-all">Guardar Todo</button>
     </div>
   );
 };
@@ -697,23 +691,23 @@ const LoginModal = ({ onLogin, onClose, primaryColor }: any) => {
       <div className="bg-white p-10 rounded-[40px] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-300">
         <div className="flex flex-col items-center mb-10 text-center">
           <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center text-4xl mb-6 shadow-inner" style={{ color: primaryColor }}>
-            <i className="fas fa-user-shield"></i>
+            <i className="fas fa-lock"></i>
           </div>
-          <h2 className="text-3xl font-black text-gray-900 tracking-tighter">Acceso Staff</h2>
-          <p className="text-gray-400 text-xs font-bold uppercase tracking-widest mt-2">Introduce tu contraseña maestra</p>
+          <h2 className="text-2xl font-black text-gray-900 tracking-tighter">Acceso Staff</h2>
+          <p className="text-gray-400 text-xs font-bold uppercase mt-2">Contraseña maestra requerida</p>
         </div>
         <input 
           type="password" 
           value={pass} 
           onChange={e => setPass(e.target.value)} 
           onKeyDown={e => e.key === 'Enter' && onLogin(pass)}
-          className="w-full p-5 border-2 border-gray-100 rounded-[20px] mb-8 bg-gray-50 outline-none text-center text-2xl tracking-[0.4em] text-gray-800 transition-all font-black shadow-inner" 
+          className="w-full p-5 border-2 border-gray-100 rounded-[20px] mb-8 bg-gray-50 outline-none text-center text-2xl tracking-[0.4em] font-black" 
           placeholder="••••" 
           autoFocus 
         />
         <div className="flex gap-4">
-          <button onClick={onClose} className="flex-1 py-4 text-gray-400 font-black text-[10px] uppercase tracking-widest hover:text-gray-600">Cancelar</button>
-          <button onClick={() => onLogin(pass)} className="flex-1 py-4 text-white rounded-[20px] font-black text-[10px] uppercase tracking-widest shadow-xl" style={{ backgroundColor: primaryColor }}>Ingresar</button>
+          <button onClick={onClose} className="flex-1 py-4 text-gray-400 font-bold uppercase text-[10px]">Cancelar</button>
+          <button onClick={() => onLogin(pass)} className="flex-1 py-4 text-white rounded-[20px] font-black uppercase text-[10px] shadow-lg" style={{ backgroundColor: primaryColor }}>Ingresar</button>
         </div>
       </div>
     </div>
