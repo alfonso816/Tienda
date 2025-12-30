@@ -40,6 +40,7 @@ interface SiteSettings {
   primaryColor: string;
   whatsapp: string;
   logo: string;
+  heroImage: string;
   heroTitle: string;
   heroDescription: string;
 }
@@ -181,6 +182,7 @@ const App = () => {
     primaryColor: '#e91e63',
     whatsapp: '+573196968646',
     logo: '',
+    heroImage: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600',
     heroTitle: 'Moda a tu medida',
     heroDescription: 'Delivery express de las mejores tendencias.'
   });
@@ -197,7 +199,7 @@ const App = () => {
     const fetchData = async () => {
       try {
         const { data: setRes } = await supabase.from('settings').select('data').eq('id', 'site_config').single();
-        if (setRes) setSettings(setRes.data);
+        if (setRes) setSettings(prev => ({...prev, ...setRes.data}));
 
         const { data: catRes } = await supabase.from('categories').select('*').order('order', { ascending: true });
         if (catRes) setCategories(catRes);
@@ -455,7 +457,7 @@ const App = () => {
         <div 
           className="absolute inset-0 bg-cover bg-center transition-all duration-1000 transform"
           style={{ 
-            backgroundImage: `url(${activeTab === 'all' ? (settings.heroTitle.startsWith('data:') ? settings.heroTitle : 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600') : (categories.find(c => c.id === activeTab)?.img || '')})`,
+            backgroundImage: `url(${activeTab === 'all' ? (settings.heroImage) : (categories.find(c => c.id === activeTab)?.img || '')})`,
           }}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
@@ -690,13 +692,20 @@ const AdminSettings = ({ settings, onUpdate }: { settings: SiteSettings, onUpdat
     }
   };
 
+  const handleHeroUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files?.[0]) {
+      const base64 = await fileToBase64(e.target.files[0]);
+      setLocalSettings({...localSettings, heroImage: base64});
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-5">
         <h4 className="font-black text-xs uppercase text-gray-500">Configuración General</h4>
         
         <div className="space-y-1">
-          <label className="text-[10px] font-black text-gray-400 uppercase">Nombre</label>
+          <label className="text-[10px] font-black text-gray-400 uppercase">Nombre del Sitio</label>
           <input value={localSettings.name} onChange={e => setLocalSettings({...localSettings, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm" />
         </div>
 
@@ -727,6 +736,16 @@ const AdminSettings = ({ settings, onUpdate }: { settings: SiteSettings, onUpdat
             <button onClick={() => setLocalSettings({...localSettings, logo: ''})} className="text-[10px] text-red-500 font-bold uppercase underline">Quitar Logo</button>
           </div>
         </div>
+
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-gray-400 uppercase">Imagen Hero Principal</label>
+          <div className="flex flex-col gap-3 p-4 bg-white border rounded-2xl items-center">
+            <div className="h-32 w-full bg-gray-50 border rounded-xl overflow-hidden shadow-inner">
+              <img src={localSettings.heroImage} className="w-full h-full object-cover" />
+            </div>
+            <input type="file" onChange={handleHeroUpload} className="text-xs" accept="image/*" />
+          </div>
+        </div>
       </div>
 
       <div className="bg-indigo-900 text-white p-6 rounded-3xl space-y-5">
@@ -735,7 +754,7 @@ const AdminSettings = ({ settings, onUpdate }: { settings: SiteSettings, onUpdat
         <textarea value={localSettings.heroDescription} onChange={e => setLocalSettings({...localSettings, heroDescription: e.target.value})} className="w-full p-3 border border-indigo-800 rounded-xl text-sm bg-indigo-950 text-white h-24" />
       </div>
 
-      <button onClick={() => onUpdate(localSettings)} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-indigo-700 transition-all">Guardar Todo</button>
+      <button onClick={() => onUpdate(localSettings)} className="w-full bg-indigo-600 text-white py-4 rounded-2xl font-black text-xs uppercase shadow-xl hover:bg-indigo-700 transition-all">Guardar Ajustes</button>
     </div>
   );
 };
