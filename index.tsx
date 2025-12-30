@@ -480,15 +480,6 @@ const App = () => {
             <p className="text-lg md:text-xl text-white/90 font-medium max-w-xl mx-auto drop-shadow-lg leading-relaxed">
               {activeTab === 'all' ? settings.heroDescription : (categories.find(c => c.id === activeTab)?.description)}
             </p>
-            {activeTab === 'all' && (
-              <button 
-                onClick={() => document.getElementById('main-grid')?.scrollIntoView({ behavior: 'smooth' })}
-                className="mt-10 bg-white px-10 py-4 rounded-full font-black text-sm uppercase shadow-2xl hover:scale-105 active:scale-95 transition-all"
-                style={{ color: settings.primaryColor }}
-              >
-                Ver Colección
-              </button>
-            )}
           </div>
         </div>
       </section>
