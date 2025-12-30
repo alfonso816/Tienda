@@ -39,6 +39,7 @@ interface SiteSettings {
   title: string;
   primaryColor: string;
   whatsapp: string;
+  socialLink: string;
   logo: string;
   heroImage: string;
   heroTitle: string;
@@ -62,7 +63,6 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group border border-gray-100 flex flex-col h-full">
-      {/* Contenedor de imagen ajustado: aspect-square, flex center y object-contain */}
       <div className="relative aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-4">
         {product.mediaType === 'image' ? (
           <img 
@@ -192,6 +192,7 @@ const App = () => {
     title: 'Solo Copas y Sonido - Tienda Oficial',
     primaryColor: '#e91e63',
     whatsapp: '+573196968646',
+    socialLink: 'https://instagram.com',
     logo: '',
     heroImage: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600',
     heroTitle: 'Tu sonido, tu estilo',
@@ -405,7 +406,14 @@ const App = () => {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 transition-all">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-          <div className="flex items-center gap-3 group cursor-pointer" onClick={() => setActiveTab('all')}>
+          {/* Logo y Nombre con función de inicio y apertura de login administrativo */}
+          <div 
+            className="flex items-center gap-3 group cursor-pointer" 
+            onClick={() => {
+              setActiveTab('all');
+              if (!isAdmin) setIsLoginOpen(true);
+            }}
+          >
             {settings.logo ? (
               <img src={settings.logo} className="w-10 h-10 object-contain rounded-xl shadow-lg" alt="Logo" />
             ) : (
@@ -426,9 +434,19 @@ const App = () => {
                 <button onClick={handleLogout} className="text-[10px] text-gray-400 hover:text-gray-800 ml-2">Salir</button>
               </div>
             ) : (
-              <button onClick={() => setIsLoginOpen(true)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                <i className="fas fa-user-circle text-2xl"></i>
-              </button>
+              <div className="flex items-center gap-3">
+                {/* Botón SÍGUENOS con el color del carrito */}
+                <a 
+                  href={settings.socialLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hidden md:flex items-center px-5 py-2 rounded-full text-[11px] font-black uppercase text-white shadow-md hover:scale-105 active:scale-95 transition-all"
+                  style={{ backgroundColor: settings.primaryColor }}
+                >
+                  SÍGUENOS
+                </a>
+                {/* Se eliminó el icono circular de acceso directo aquí */}
+              </div>
             )}
             
             <button onClick={() => setIsCartOpen(true)} className="relative group p-2 rounded-xl transition-colors">
@@ -722,6 +740,11 @@ const AdminSettings = ({ settings, onUpdate }: { settings: SiteSettings, onUpdat
         <div className="space-y-1">
           <label className="text-[10px] font-black text-gray-400 uppercase">WhatsApp</label>
           <input value={localSettings.whatsapp} onChange={e => setLocalSettings({...localSettings, whatsapp: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="+57..." />
+        </div>
+
+        <div className="space-y-1">
+          <label className="text-[10px] font-black text-gray-400 uppercase">Enlace Red Social (Síguenos)</label>
+          <input value={localSettings.socialLink} onChange={e => setLocalSettings({...localSettings, socialLink: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="URL de Instagram/Facebook..." />
         </div>
 
         <div className="space-y-2">
