@@ -62,18 +62,29 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
 
   return (
     <div className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 group border border-gray-100 flex flex-col h-full">
-      <div className="relative aspect-[4/5] overflow-hidden bg-gray-50">
+      {/* Contenedor de imagen ajustado: aspect-square, flex center y object-contain */}
+      <div className="relative aspect-square overflow-hidden bg-gray-50 flex items-center justify-center p-4">
         {product.mediaType === 'image' ? (
-          <img src={product.mediaUrl} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" alt={product.name} />
+          <img 
+            src={product.mediaUrl} 
+            className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-700" 
+            alt={product.name} 
+          />
         ) : (
-          <video src={product.mediaUrl} className="w-full h-full object-cover" muted autoPlay loop />
+          <video 
+            src={product.mediaUrl} 
+            className="w-full h-full object-cover" 
+            muted 
+            autoPlay 
+            loop 
+          />
         )}
         <div className="absolute top-3 right-3 bg-white/90 backdrop-blur px-2 py-1 rounded-lg text-[10px] font-bold shadow-sm" style={{ color: primaryColor }}>
           NUEVO
         </div>
       </div>
       <div className="p-4 flex flex-col flex-1">
-        <h3 className="font-bold text-gray-800 mb-1 line-clamp-1 uppercase">{product.name}</h3>
+        <h3 className="font-bold text-gray-800 mb-1 line-clamp-1 uppercase text-sm">{product.name}</h3>
         <p className="text-gray-400 text-[11px] mb-3 line-clamp-2 leading-tight h-8">{product.description}</p>
         
         <div className="mt-auto">
@@ -177,14 +188,14 @@ const App = () => {
   const [products, setProducts] = useState<Record<string, Product[]>>({});
   const [cart, setCart] = useState<CartItem[]>([]);
   const [settings, setSettings] = useState<SiteSettings>({
-    name: 'TUS CURVAS LINDAS',
-    title: 'Tus Curvas Lindas - Moda Delivery',
+    name: 'SOLO COPAS Y SONIDO',
+    title: 'Solo Copas y Sonido - Tienda Oficial',
     primaryColor: '#e91e63',
     whatsapp: '+573196968646',
     logo: '',
     heroImage: 'https://images.unsplash.com/photo-1445205170230-053b83016050?w=1600',
-    heroTitle: 'Moda a tu medida',
-    heroDescription: 'Delivery express de las mejores tendencias.'
+    heroTitle: 'Tu sonido, tu estilo',
+    heroDescription: 'Lo mejor en audio para tu vehículo con entrega inmediata.'
   });
 
   const [activeTab, setActiveTab] = useState<string>('all');
