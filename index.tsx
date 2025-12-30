@@ -295,11 +295,27 @@ const App = () => {
     
     const { error } = await supabase.from('categories').insert([catData]);
     if (error) {
-      alert(`Error al crear categoría: ${error.message}. Verifica que RLS esté desactivado en Supabase.`);
+      alert(`Error al crear categoría: ${error.message}.`);
     } else {
       setCategories(prev => [...prev, catData]);
       setProducts(prev => ({ ...prev, [id]: [] }));
       alert('Categoría creada exitosamente.');
+    }
+  };
+
+  const syncUpdateCategory = async (cat: Category) => {
+    const { error } = await supabase.from('categories').update({
+      name: cat.name,
+      description: cat.description,
+      img: cat.img,
+      color: cat.color
+    }).eq('id', cat.id);
+
+    if (error) {
+      alert(`Error al actualizar: ${error.message}`);
+    } else {
+      setCategories(prev => prev.map(c => c.id === cat.id ? cat : c));
+      alert('Categoría actualizada correctamente.');
     }
   };
 
@@ -498,6 +514,7 @@ const App = () => {
           onClose={() => setIsAdminPanelOpen(false)} 
           categories={categories} 
           syncAddCategory={syncAddCategory}
+          syncUpdateCategory={syncUpdateCategory}
           syncRemoveCategory={syncRemoveCategory}
           products={products}
           syncAddProduct={syncAddProduct}
@@ -513,7 +530,7 @@ const App = () => {
 
 // --- Panel de Administración ---
 
-const AdminPanel = ({ onClose, categories, syncAddCategory, syncRemoveCategory, products, syncAddProduct, syncRemoveProduct, settings, syncUpdateSettings }: any) => {
+const AdminPanel = ({ onClose, categories, syncAddCategory, syncUpdateCategory, syncRemoveCategory, products, syncAddProduct, syncRemoveProduct, settings, syncUpdateSettings }: any) => {
   const [tab, setTab] = useState('config');
   
   return (
@@ -529,7 +546,7 @@ const AdminPanel = ({ onClose, categories, syncAddCategory, syncRemoveCategory, 
           <button onClick={() => setTab('config')} className={`flex-1 py-4 text-[10px] font-black uppercase ${tab === 'config' ? 'border-b-4 border-indigo-600 text-indigo-600' : 'text-gray-400'}`}>Ajustes</button>
         </div>
         <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar">
-          {tab === 'cats' && <AdminCats categories={categories} onAdd={syncAddCategory} onRemove={syncRemoveCategory} />}
+          {tab === 'cats' && <AdminCats categories={categories} onAdd={syncAddCategory} onUpdate={syncUpdateCategory} onRemove={syncRemoveCategory} />}
           {tab === 'prods' && <AdminProds categories={categories} products={products} onAdd={syncAddProduct} onRemove={syncRemoveProduct} />}
           {tab === 'config' && <AdminSettings settings={settings} onUpdate={syncUpdateSettings} />}
         </div>
@@ -538,37 +555,78 @@ const AdminPanel = ({ onClose, categories, syncAddCategory, syncRemoveCategory, 
   );
 };
 
-const AdminCats = ({ categories, onAdd, onRemove }: any) => {
-  const [newCat, setNewCat] = useState({ name: '', description: '', img: '', color: '#e91e63' });
+const AdminCats = ({ categories, onAdd, onUpdate, onRemove }: any) => {
+  const [editingCat, setEditingCat] = useState<Category | null>(null);
+  const [form, setForm] = useState({ name: '', description: '', img: '', color: '#e91e63' });
+
+  useEffect(() => {
+    if (editingCat) {
+      setForm({
+        name: editingCat.name,
+        description: editingCat.description,
+        img: editingCat.img,
+        color: editingCat.color
+      });
+    } else {
+      setForm({ name: '', description: '', img: '', color: '#e91e63' });
+    }
+  }, [editingCat]);
+
+  const handleSubmit = () => {
+    if (editingCat) {
+      onUpdate({ ...editingCat, ...form });
+      setEditingCat(null);
+    } else {
+      onAdd(form);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-        <h4 className="font-black text-xs uppercase tracking-widest text-gray-400 mb-4">Nueva Categoría</h4>
+        <h4 className="font-black text-xs uppercase tracking-widest text-gray-400 mb-4">
+          {editingCat ? `Editando: ${editingCat.name}` : 'Nueva Categoría'}
+        </h4>
         <div className="space-y-4">
-          <input value={newCat.name} onChange={e => setNewCat({...newCat, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="Nombre (ej: Vestidos)" />
-          <textarea value={newCat.description} onChange={e => setNewCat({...newCat, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm h-20" placeholder="Descripción corta" />
+          <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="Nombre (ej: Vestidos)" />
+          <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm h-20" placeholder="Descripción corta" />
           <div className="flex flex-col gap-1">
             <label className="text-[10px] font-bold text-gray-400">Imagen Hero</label>
+            {form.img && <img src={form.img} className="w-20 h-20 object-cover rounded-xl mb-2 shadow-sm border" />}
             <input type="file" onChange={async e => {
-              if (e.target.files?.[0]) setNewCat({...newCat, img: await fileToBase64(e.target.files[0])})
+              if (e.target.files?.[0]) setForm({...form, img: await fileToBase64(e.target.files[0])})
             }} className="text-xs" />
           </div>
           <div className="flex items-center gap-3">
             <label className="text-xs font-bold text-gray-500">Color:</label>
-            <input type="color" value={newCat.color} onChange={e => setNewCat({...newCat, color: e.target.value})} className="w-10 h-8 cursor-pointer" />
+            <input type="color" value={form.color} onChange={e => setForm({...form, color: e.target.value})} className="w-10 h-8 cursor-pointer" />
           </div>
-          <button onClick={() => onAdd(newCat)} className="w-full bg-indigo-600 text-white py-3 rounded-xl font-bold">Añadir Categoría</button>
+          <div className="flex gap-2">
+            <button onClick={handleSubmit} className="flex-1 bg-indigo-600 text-white py-3 rounded-xl font-bold">
+              {editingCat ? 'Guardar Cambios' : 'Añadir Categoría'}
+            </button>
+            {editingCat && (
+              <button onClick={() => setEditingCat(null)} className="px-4 border border-gray-200 rounded-xl font-bold text-gray-400">Cancelar</button>
+            )}
+          </div>
         </div>
       </div>
       <div className="space-y-2">
         {categories.map((c: any) => (
-          <div key={c.id} className="flex items-center justify-between p-4 bg-white border rounded-2xl">
+          <div key={c.id} className="flex items-center justify-between p-4 bg-white border rounded-2xl group">
             <div className="flex items-center gap-3">
-              <div className="w-4 h-4 rounded-full shadow-sm" style={{backgroundColor: c.color}}></div>
-              <span className="font-bold text-sm text-gray-700">{c.name}</span>
+              <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50">
+                {c.img && <img src={c.img} className="w-full h-full object-cover" />}
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-sm text-gray-700">{c.name}</span>
+                <span className="text-[10px] text-gray-400 uppercase font-bold" style={{ color: c.color }}>{c.color}</span>
+              </div>
             </div>
-            <button onClick={() => onRemove(c.id)} className="text-red-400 p-2"><i className="fas fa-trash-alt"></i></button>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => setEditingCat(c)} className="text-indigo-400 p-2 hover:bg-indigo-50 rounded-lg"><i className="fas fa-edit"></i></button>
+              <button onClick={() => onRemove(c.id)} className="text-red-400 p-2 hover:bg-red-50 rounded-lg"><i className="fas fa-trash-alt"></i></button>
+            </div>
           </div>
         ))}
       </div>
