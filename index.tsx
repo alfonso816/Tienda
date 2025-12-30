@@ -123,7 +123,7 @@ const CartSidebar = ({ cart, updateQuantity, checkout, onClose, primaryColor }: 
         <div className="flex-1 overflow-y-auto p-6 custom-scrollbar space-y-4">
           {cart.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-300 py-20">
-              <i className="fas fa-shopping-bag text-5xl opacity-10 mb-4"></i>
+              <i className="fas fa-shopping-cart text-5xl opacity-10 mb-4"></i>
               <p className="font-medium">Tu carrito está vacío</p>
               <button onClick={onClose} className="mt-4 font-bold text-sm underline" style={{ color: primaryColor }}>Seguir comprando</button>
             </div>
@@ -386,7 +386,6 @@ const App = () => {
             )}
             <div className="flex flex-col">
               <span className="text-lg font-black tracking-tight leading-none text-gray-800 uppercase">{settings.name}</span>
-              <span className="text-[10px] uppercase font-bold tracking-widest" style={{ color: settings.primaryColor }}>Premium Fashion</span>
             </div>
           </div>
           
@@ -404,7 +403,7 @@ const App = () => {
             )}
             
             <button onClick={() => setIsCartOpen(true)} className="relative group p-2 rounded-xl transition-colors">
-              <i className="fas fa-shopping-bag text-2xl" style={{ color: settings.primaryColor }}></i>
+              <i className="fas fa-shopping-cart text-2xl" style={{ color: settings.primaryColor }}></i>
               {cart.length > 0 && (
                 <span className="absolute top-1 right-1 text-white text-[9px] w-5 h-5 rounded-full flex items-center justify-center font-black ring-4 ring-white" style={{ backgroundColor: settings.primaryColor }}>
                   {cart.reduce((acc, item) => acc + item.quantity, 0)}
@@ -469,9 +468,8 @@ const App = () => {
       <main id="main-grid" className="max-w-7xl mx-auto px-4 py-20">
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
           <div>
-            <span className="font-black text-xs uppercase tracking-widest mb-2 block" style={{ color: settings.primaryColor }}>Artículos Premium</span>
-            <h2 className="text-4xl font-black text-gray-900 tracking-tighter">
-              {activeTab === 'all' ? 'Nueva Temporada' : `Colección ${categories.find(c => c.id === activeTab)?.name}`}
+            <h2 className="text-4xl font-black text-gray-900 tracking-tighter uppercase">
+              {activeTab === 'all' ? 'DESTACADOS' : (categories.find(c => c.id === activeTab)?.name)}
             </h2>
           </div>
           <div className="text-gray-400 text-sm font-medium">
@@ -688,7 +686,7 @@ const LoginModal = ({ onLogin, onClose, primaryColor }: any) => {
   const [pass, setPass] = useState('');
   return (
     <div className="fixed inset-0 z-[200] bg-black/80 backdrop-blur-xl flex items-center justify-center p-4">
-      <div className="bg-white p-10 rounded-[40px] w-full max-w-sm shadow-2xl animate-in zoom-in-95 duration-300">
+      <div className="bg-white p-10 rounded-[40px] w-full max-sm shadow-2xl animate-in zoom-in-95 duration-300">
         <div className="flex flex-col items-center mb-10 text-center">
           <div className="w-20 h-20 bg-gray-50 rounded-3xl flex items-center justify-center text-4xl mb-6 shadow-inner" style={{ color: primaryColor }}>
             <i className="fas fa-lock"></i>
