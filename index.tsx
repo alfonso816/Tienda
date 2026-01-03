@@ -356,7 +356,7 @@ const App = () => {
       description: prod.description,
       price: prod.price,
       media_url: prod.mediaUrl,
-      media_type: prod.mediaType,
+      media_type: prod.media_type,
       sizes: prod.sizes
     };
     const { error } = await supabase.from('products').insert([dbProd]);
@@ -435,17 +435,16 @@ const App = () => {
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                {/* Botón SÍGUENOS con el color del carrito */}
+                {/* Botón SÍGUENOS - Ahora siempre visible en móvil */}
                 <a 
                   href={settings.socialLink} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className="hidden md:flex items-center px-5 py-2 rounded-full text-[11px] font-black uppercase text-white shadow-md hover:scale-105 active:scale-95 transition-all"
+                  className="flex items-center px-3 md:px-5 py-2 rounded-full text-[11px] font-black uppercase text-white shadow-md hover:scale-105 active:scale-95 transition-all"
                   style={{ backgroundColor: settings.primaryColor }}
                 >
                   SÍGUENOS
                 </a>
-                {/* Se eliminó el icono circular de acceso directo aquí */}
               </div>
             )}
             
