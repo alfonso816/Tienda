@@ -356,7 +356,7 @@ const App = () => {
       description: prod.description,
       price: prod.price,
       media_url: prod.mediaUrl,
-      media_type: prod.media_type,
+      media_type: prod.mediaType,
       sizes: prod.sizes
     };
     const { error } = await supabase.from('products').insert([dbProd]);
@@ -368,6 +368,27 @@ const App = () => {
         [catId]: [...(prev[catId] || []), { ...prod, id: dbProd.id, category_id: catId }]
       }));
       alert('Producto guardado correctamente.');
+    }
+  };
+
+  const syncUpdateProduct = async (catId: string, prod: Product) => {
+    const { error } = await supabase.from('products').update({
+      name: prod.name,
+      description: prod.description,
+      price: prod.price,
+      media_url: prod.mediaUrl,
+      media_type: prod.mediaType,
+      sizes: prod.sizes
+    }).eq('id', prod.id);
+
+    if (error) {
+      alert(`Error al actualizar producto: ${error.message}`);
+    } else {
+      setProducts(prev => ({
+        ...prev,
+        [catId]: prev[catId].map(p => p.id === prod.id ? prod : p)
+      }));
+      alert('Producto actualizado correctamente.');
     }
   };
 
@@ -406,7 +427,6 @@ const App = () => {
       {/* Header */}
       <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50 transition-all">
         <div className="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
-          {/* Logo y Nombre con función de inicio y apertura de login administrativo */}
           <div 
             className="flex items-center gap-3 group cursor-pointer" 
             onClick={() => {
@@ -435,7 +455,6 @@ const App = () => {
               </div>
             ) : (
               <div className="flex items-center gap-3">
-                {/* Botón SÍGUENOS - Ahora siempre visible en móvil */}
                 <a 
                   href={settings.socialLink} 
                   target="_blank" 
@@ -459,7 +478,6 @@ const App = () => {
           </div>
         </div>
         
-        {/* Categorías Slider */}
         <div className="max-w-7xl mx-auto px-4 border-t border-gray-50 flex gap-4 py-3 overflow-x-auto no-scrollbar scroll-smooth">
           <button 
             onClick={() => setActiveTab('all')}
@@ -539,6 +557,7 @@ const App = () => {
           syncRemoveCategory={syncRemoveCategory}
           products={products}
           syncAddProduct={syncAddProduct}
+          syncUpdateProduct={syncUpdateProduct}
           syncRemoveProduct={syncRemoveProduct}
           settings={settings}
           syncUpdateSettings={syncUpdateSettings}
@@ -551,7 +570,7 @@ const App = () => {
 
 // --- Panel de Administración ---
 
-const AdminPanel = ({ onClose, categories, syncAddCategory, syncUpdateCategory, syncRemoveCategory, products, syncAddProduct, syncRemoveProduct, settings, syncUpdateSettings }: any) => {
+const AdminPanel = ({ onClose, categories, syncAddCategory, syncUpdateCategory, syncRemoveCategory, products, syncAddProduct, syncUpdateProduct, syncRemoveProduct, settings, syncUpdateSettings }: any) => {
   const [tab, setTab] = useState('config');
   
   return (
@@ -568,7 +587,7 @@ const AdminPanel = ({ onClose, categories, syncAddCategory, syncUpdateCategory, 
         </div>
         <div className="flex-1 overflow-y-auto p-6 bg-white custom-scrollbar">
           {tab === 'cats' && <AdminCats categories={categories} onAdd={syncAddCategory} onUpdate={syncUpdateCategory} onRemove={syncRemoveCategory} />}
-          {tab === 'prods' && <AdminProds categories={categories} products={products} onAdd={syncAddProduct} onRemove={syncRemoveProduct} />}
+          {tab === 'prods' && <AdminProds categories={categories} products={products} onAdd={syncAddProduct} onUpdate={syncUpdateProduct} onRemove={syncRemoveProduct} />}
           {tab === 'config' && <AdminSettings settings={settings} onUpdate={syncUpdateSettings} />}
         </div>
       </div>
@@ -655,48 +674,113 @@ const AdminCats = ({ categories, onAdd, onUpdate, onRemove }: any) => {
   );
 };
 
-const AdminProds = ({ categories, products, onAdd, onRemove }: any) => {
+const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove }: any) => {
   const [selectedCat, setSelectedCat] = useState('');
-  const [newProd, setNewProd] = useState({ 
+  const [editingProd, setEditingProd] = useState<Product | null>(null);
+  const [form, setForm] = useState({ 
     name: '', 
     description: '', 
     price: 0, 
-    mediaType: 'image', 
+    mediaType: 'image' as 'image' | 'video', 
     mediaUrl: '', 
     sizes: ['Única'] as string[] 
   });
 
+  useEffect(() => {
+    if (editingProd) {
+      setForm({
+        name: editingProd.name,
+        description: editingProd.description,
+        price: editingProd.price,
+        mediaType: editingProd.mediaType,
+        mediaUrl: editingProd.mediaUrl,
+        sizes: editingProd.sizes
+      });
+    } else {
+      setForm({ name: '', description: '', price: 0, mediaType: 'image', mediaUrl: '', sizes: ['Única'] });
+    }
+  }, [editingProd]);
+
+  const handleSubmit = () => {
+    if (!selectedCat) return alert('Selecciona una categoría primero.');
+    if (editingProd) {
+      onUpdate(selectedCat, { ...editingProd, ...form });
+      setEditingProd(null);
+    } else {
+      onAdd(selectedCat, form);
+    }
+  };
+
   return (
     <div className="space-y-6">
-      <select value={selectedCat} onChange={e => setSelectedCat(e.target.value)} className="w-full p-3 border rounded-2xl bg-gray-50 text-sm font-bold">
+      <select value={selectedCat} onChange={e => {
+        setSelectedCat(e.target.value);
+        setEditingProd(null);
+      }} className="w-full p-3 border rounded-2xl bg-gray-50 text-sm font-bold">
         <option value="">Selecciona Categoría...</option>
         {categories.map((c: any) => <option key={c.id} value={c.id}>{c.name}</option>)}
       </select>
       
       {selectedCat && (
         <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-4">
-          <input value={newProd.name} onChange={e => setNewProd({...newProd, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="Nombre" />
-          <textarea value={newProd.description} onChange={e => setNewProd({...newProd, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm h-20" placeholder="Detalles" />
-          <input type="number" value={newProd.price} onChange={e => setNewProd({...newProd, price: parseFloat(e.target.value)})} className="w-full p-3 border rounded-xl text-sm" placeholder="Precio ($)" />
+          <h4 className="font-black text-xs uppercase tracking-widest text-gray-400">
+            {editingProd ? `Editando: ${editingProd.name}` : 'Nuevo Producto'}
+          </h4>
+          <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full p-3 border rounded-xl text-sm" placeholder="Nombre" />
+          <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full p-3 border rounded-xl text-sm h-20" placeholder="Detalles" />
+          <input type="number" value={form.price} onChange={e => setForm({...form, price: parseFloat(e.target.value)})} className="w-full p-3 border rounded-xl text-sm" placeholder="Precio ($)" />
           <div className="flex flex-col gap-1">
              <label className="text-[10px] font-bold text-gray-400">Imagen/Video</label>
+             {form.mediaUrl && (
+               <div className="w-20 h-20 mb-2 border rounded-xl overflow-hidden">
+                 {form.mediaType === 'image' ? (
+                   <img src={form.mediaUrl} className="w-full h-full object-cover" />
+                 ) : (
+                   <video src={form.mediaUrl} className="w-full h-full object-cover" muted />
+                 )}
+               </div>
+             )}
              <input type="file" onChange={async e => {
-               if (e.target.files?.[0]) setNewProd({...newProd, mediaUrl: await fileToBase64(e.target.files[0]), mediaType: e.target.files[0].type.startsWith('video') ? 'video' : 'image'})
+               if (e.target.files?.[0]) {
+                 const base64 = await fileToBase64(e.target.files[0]);
+                 setForm({...form, mediaUrl: base64, mediaType: e.target.files[0].type.startsWith('video') ? 'video' : 'image'});
+               }
              }} className="text-xs" />
           </div>
-          <button onClick={() => onAdd(selectedCat, newProd)} className="w-full bg-green-600 text-white py-3 rounded-xl font-bold">Añadir Producto</button>
+          <div className="flex gap-2">
+            <button onClick={handleSubmit} className={`flex-1 text-white py-3 rounded-xl font-bold ${editingProd ? 'bg-indigo-600' : 'bg-green-600'}`}>
+              {editingProd ? 'Guardar Cambios' : 'Añadir Producto'}
+            </button>
+            {editingProd && (
+              <button onClick={() => setEditingProd(null)} className="px-4 border border-gray-200 rounded-xl font-bold text-gray-400">Cancelar</button>
+            )}
+          </div>
         </div>
       )}
 
-      {selectedCat && products[selectedCat]?.map((p: any) => (
-        <div key={p.id} className="flex items-center justify-between p-3 border-b">
-          <div className="flex items-center gap-3">
-            <img src={p.mediaUrl} className="w-10 h-10 object-cover rounded shadow-sm" />
-            <span className="text-xs font-bold text-gray-700">{p.name}</span>
+      <div className="space-y-2">
+        {selectedCat && products[selectedCat]?.map((p: any) => (
+          <div key={p.id} className="flex items-center justify-between p-4 bg-white border rounded-2xl group">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl overflow-hidden bg-gray-50 border shadow-sm">
+                {p.mediaType === 'image' ? (
+                  <img src={p.mediaUrl} className="w-full h-full object-cover" />
+                ) : (
+                  <video src={p.mediaUrl} className="w-full h-full object-cover" muted />
+                )}
+              </div>
+              <div className="flex flex-col">
+                <span className="text-xs font-bold text-gray-700">{p.name}</span>
+                <span className="text-[10px] font-black text-indigo-500">${Number(p.price).toLocaleString()}</span>
+              </div>
+            </div>
+            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <button onClick={() => setEditingProd(p)} className="text-indigo-400 p-2 hover:bg-indigo-50 rounded-lg"><i className="fas fa-edit"></i></button>
+              <button onClick={() => onRemove(selectedCat, p.id)} className="text-red-400 p-2 hover:bg-red-50 rounded-lg"><i className="fas fa-trash-alt"></i></button>
+            </div>
           </div>
-          <button onClick={() => onRemove(selectedCat, p.id)} className="text-red-300"><i className="fas fa-trash-alt"></i></button>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 };
