@@ -63,24 +63,25 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
 
   return (
     <div className="bg-zinc-900/50 backdrop-blur-md rounded-3xl overflow-hidden border border-white/5 hover:border-cyan-500/50 transition-all duration-500 group flex flex-col h-full shadow-2xl hover:shadow-cyan-500/10">
-      <div className="relative aspect-square overflow-hidden bg-black/40 flex items-center justify-center">
+      {/* Contenedor de Imagen ajustado para ver el producto completo */}
+      <div className="relative aspect-square overflow-hidden bg-black/60 flex items-center justify-center p-6">
         {product.mediaType === 'image' ? (
           <img 
             src={product.mediaUrl} 
-            className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-1000" 
+            className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-1000" 
             alt={product.name} 
           />
         ) : (
-          <video src={product.mediaUrl} className="w-full h-full object-cover" muted autoPlay loop />
+          <video src={product.mediaUrl} className="max-w-full max-h-full object-contain" muted autoPlay loop />
         )}
         <div className="absolute top-4 left-4">
-          <span className="bg-cyan-500 text-black text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter">Premium</span>
+          <span className="bg-cyan-500 text-black text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter shadow-lg shadow-cyan-500/20">Premium</span>
         </div>
       </div>
       
       <div className="p-5 flex flex-col flex-1">
-        <h3 className="text-white font-bold text-lg mb-1 group-hover:text-cyan-400 transition-colors uppercase italic">{product.name}</h3>
-        <p className="text-zinc-500 text-xs mb-4 line-clamp-2 h-8">{product.description}</p>
+        <h3 className="text-white font-bold text-lg mb-1 group-hover:text-cyan-400 transition-colors uppercase italic tracking-tighter line-clamp-1">{product.name}</h3>
+        <p className="text-zinc-500 text-xs mb-4 line-clamp-2 h-8 leading-relaxed">{product.description}</p>
         
         <div className="mt-auto space-y-4">
           {product.sizes && product.sizes.length > 0 && product.sizes[0] !== 'Única' && (
@@ -99,7 +100,7 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
             <span className="text-xl font-black text-white">${Number(product.price).toLocaleString()}</span>
             <button 
               onClick={() => onAdd(product, selectedSize)}
-              className="bg-white text-black text-[11px] font-black px-5 py-2.5 rounded-xl hover:bg-cyan-400 transition-all active:scale-95 uppercase"
+              className="bg-white text-black text-[11px] font-black px-5 py-2.5 rounded-xl hover:bg-cyan-400 transition-all active:scale-95 uppercase tracking-widest"
             >Agregar</button>
           </div>
         </div>
@@ -131,7 +132,7 @@ const CartSidebar = ({ cart, updateQuantity, checkout, onClose, primaryColor }: 
           ) : (
             cart.map((item: any) => (
               <div key={`${item.id}-${item.selectedSize}`} className="flex gap-4 p-4 bg-zinc-900/50 rounded-3xl border border-white/5">
-                <img src={item.mediaUrl} className="w-20 h-20 object-cover rounded-2xl border border-white/5" alt="" />
+                <img src={item.mediaUrl} className="w-20 h-20 object-contain bg-black/40 rounded-2xl border border-white/5" alt="" />
                 <div className="flex-1">
                   <div className="flex justify-between items-start mb-1">
                     <h4 className="font-bold text-sm text-white uppercase italic">{item.name}</h4>
@@ -196,18 +197,17 @@ const App = () => {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Timeout de seguridad: Si después de 5s no ha cargado, forzamos la entrada
     const safetyTimeout = setTimeout(() => setIsLoading(false), 5000);
 
     const fetchData = async () => {
       try {
-        const { data: setRes, error: setErr } = await supabase.from('settings').select('data').eq('id', 'site_config').maybeSingle();
+        const { data: setRes } = await supabase.from('settings').select('data').eq('id', 'site_config').maybeSingle();
         if (setRes) setSettings(prev => ({...prev, ...setRes.data}));
 
-        const { data: catRes, error: catErr } = await supabase.from('categories').select('*').order('order', { ascending: true });
+        const { data: catRes } = await supabase.from('categories').select('*').order('order', { ascending: true });
         if (catRes) setCategories(catRes);
 
-        const { data: prodRes, error: prodErr } = await supabase.from('products').select('*');
+        const { data: prodRes } = await supabase.from('products').select('*');
         if (prodRes) {
           const grouped: Record<string, Product[]> = {};
           prodRes.forEach((p: any) => {
@@ -227,7 +227,7 @@ const App = () => {
           setProducts(grouped);
         }
       } catch (err) { 
-        console.error("Error cargando desde Supabase:", err); 
+        console.error(err); 
       } finally { 
         clearTimeout(safetyTimeout);
         setIsLoading(false); 
@@ -239,7 +239,6 @@ const App = () => {
     fetchData();
   }, []);
 
-  // Funciones de Sincronización
   const syncAddCategory = async (newCat: any) => {
     const id = newCat.name.toLowerCase().replace(/\s+/g, '-');
     const catData = { ...newCat, id, order: categories.length + 1 };
@@ -247,7 +246,7 @@ const App = () => {
     if (!error) {
       setCategories(prev => [...prev, catData]);
       setProducts(prev => ({ ...prev, [id]: [] }));
-    } else { alert(error.message); }
+    }
   };
 
   const syncUpdateCategory = async (cat: Category) => {
@@ -424,7 +423,7 @@ const App = () => {
       {/* Products Grid */}
       <main id="main-grid" className="max-w-7xl mx-auto px-4 py-24">
         <div className="flex items-center justify-between mb-16">
-          <div>
+          <div className="relative">
             <span className="text-cyan-500 text-[10px] font-black uppercase tracking-[0.5em] mb-2 block">Nuestra Colección</span>
             <h2 className="text-4xl font-black italic uppercase tracking-tighter">Equipos Destacados</h2>
           </div>
@@ -579,7 +578,7 @@ const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove }: any) =>
       {selectedCat && products[selectedCat]?.map((p: Product) => (
         <div key={p.id} className="flex items-center justify-between p-4 bg-zinc-900/50 border border-white/5 rounded-2xl group">
            <div className="flex items-center gap-3">
-             <img src={p.mediaUrl} className="w-10 h-10 object-cover rounded-lg" />
+             <img src={p.mediaUrl} className="w-10 h-10 object-contain bg-black/40 rounded-lg" />
              <span className="text-xs font-bold">{p.name}</span>
            </div>
            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
