@@ -62,7 +62,7 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
   const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || 'Única');
 
   return (
-    <div className="bg-zinc-900/50 backdrop-blur-md rounded-3xl overflow-hidden border border-white/5 hover:border-cyan-500/50 transition-all duration-500 group flex flex-col h-full shadow-2xl hover:shadow-cyan-500/10">
+    <div className="bg-zinc-900/50 backdrop-blur-md rounded-3xl overflow-hidden border border-white/5 hover:border-cyan-500/50 transition-all duration-500 group flex flex-col h-full shadow-2xl hover:shadow-cyan-500/10 hover:bg-zinc-900/80">
       {/* Contenedor de Imagen ajustado para ver el producto completo */}
       <div className="relative aspect-square overflow-hidden bg-black/60 flex items-center justify-center p-6">
         {product.mediaType === 'image' ? (
@@ -80,8 +80,13 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
       </div>
       
       <div className="p-5 flex flex-col flex-1">
-        <h3 className="text-white font-bold text-lg mb-1 group-hover:text-cyan-400 transition-colors uppercase italic tracking-tighter line-clamp-1">{product.name}</h3>
-        <p className="text-zinc-500 text-xs mb-4 line-clamp-2 h-8 leading-relaxed">{product.description}</p>
+        <h3 className="text-white font-bold text-lg mb-1 group-hover:text-cyan-400 transition-colors uppercase italic tracking-tighter line-clamp-1">
+          {product.name}
+        </h3>
+        {/* Descripción con visibilidad mejorada en hover */}
+        <p className="text-zinc-400 text-xs mb-4 line-clamp-2 h-10 leading-relaxed transition-colors duration-300 group-hover:text-white">
+          {product.description}
+        </p>
         
         <div className="mt-auto space-y-4">
           {product.sizes && product.sizes.length > 0 && product.sizes[0] !== 'Única' && (
