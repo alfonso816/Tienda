@@ -90,7 +90,7 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
           {product.name}
         </h3>
         {/* Descripción con visibilidad mejorada en hover */}
-        <p className="text-zinc-400 text-xs mb-4 line-clamp-2 h-10 leading-relaxed transition-colors duration-300 group-hover:text-white">
+        <p className="text-zinc-500 text-xs mb-4 line-clamp-2 h-8 leading-relaxed transition-colors duration-300 group-hover:text-white">
           {product.description}
         </p>
         
@@ -187,28 +187,32 @@ const ProductDetailModal = ({ product, onAdd, onClose }: { product: Product, onA
   const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || 'Única');
 
   return (
-    <div className="fixed inset-0 z-[150] bg-black/90 backdrop-blur-2xl flex items-center justify-center p-4 md:p-8">
-      <div className="w-full max-w-5xl bg-zinc-950 rounded-[40px] overflow-hidden border border-white/10 shadow-2xl flex flex-col md:flex-row animate-scale-in">
+    <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4 md:p-8 animate-fade-in">
+      <div className="w-full max-w-5xl bg-zinc-950 rounded-[40px] overflow-hidden border border-white/10 shadow-[0_0_100px_rgba(0,0,0,0.8)] flex flex-col md:flex-row animate-scale-in relative">
+        <button 
+          onClick={onClose} 
+          className="absolute top-6 right-6 w-12 h-12 bg-white/5 hover:bg-white/10 rounded-full flex items-center justify-center text-white text-3xl z-20 transition-all border border-white/5"
+        >
+          &times;
+        </button>
+
         <div className="w-full md:w-1/2 bg-black/40 flex items-center justify-center p-8 relative">
-          <button onClick={onClose} className="absolute top-6 left-6 md:hidden w-10 h-10 bg-black/50 rounded-full flex items-center justify-center text-white text-2xl z-10">&times;</button>
           {product.mediaType === 'image' ? (
-            <img src={product.mediaUrl} className="max-w-full max-h-[60vh] object-contain" alt={product.name} />
+            <img src={product.mediaUrl} className="max-w-full max-h-[60vh] object-contain drop-shadow-2xl" alt={product.name} />
           ) : (
             <video src={product.mediaUrl} className="max-w-full max-h-[60vh] object-contain" muted autoPlay loop />
           )}
         </div>
         
-        <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col">
-          <div className="flex justify-between items-start mb-6">
-            <div>
-              <span className="text-cyan-500 text-[10px] font-black uppercase tracking-[0.5em] mb-2 block">Detalles del Producto</span>
-              <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter text-white leading-none">{product.name}</h2>
-            </div>
-            <button onClick={onClose} className="hidden md:flex w-12 h-12 items-center justify-center rounded-full hover:bg-white/5 transition-colors text-white text-4xl">&times;</button>
+        <div className="w-full md:w-1/2 p-8 md:p-12 flex flex-col bg-zinc-900/30">
+          <div className="mb-8">
+            <span className="text-cyan-500 text-[10px] font-black uppercase tracking-[0.5em] mb-3 block">Detalles del Producto</span>
+            <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-white leading-none mb-4">{product.name}</h2>
+            <div className="h-1 w-20 bg-cyan-500 rounded-full"></div>
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-4 mb-8">
-            <p className="text-zinc-400 text-lg leading-relaxed mb-8 whitespace-pre-wrap">
+            <p className="text-zinc-400 text-lg leading-relaxed mb-8 whitespace-pre-wrap font-medium">
               {product.description}
             </p>
             
