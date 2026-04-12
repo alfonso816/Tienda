@@ -591,7 +591,7 @@ const App = () => {
       )}
 
       {/* Modals */}
-      {isLoginOpen && <LoginModal onLogin={(p: string) => { if(p==='admin123'){ setIsAdmin(true); localStorage.setItem('tcl_user', 'admin'); setIsLoginOpen(false); }else{alert('Contraseña Incorrecta')} }} onClose={() => setIsLoginOpen(false)} />}
+      {isLoginOpen && <LoginModal onLogin={(p: string) => { if(p==='Marioboss1964'){ setIsAdmin(true); localStorage.setItem('tcl_user', 'admin'); setIsLoginOpen(false); }else{alert('Contraseña Incorrecta')} }} onClose={() => setIsLoginOpen(false)} />}
       {isAdminPanelOpen && (
         <AdminPanel 
           onClose={() => setIsAdminPanelOpen(false)} 
