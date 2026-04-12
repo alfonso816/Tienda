@@ -27,6 +27,7 @@ interface Product {
   mediaUrl: string;
   mediaType: 'image' | 'video';
   sizes: string[];
+  sold?: boolean;
 }
 
 interface CartItem extends Product {
@@ -77,9 +78,22 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
         ) : (
           <video src={product.mediaUrl} className="max-w-full max-h-full object-contain" muted autoPlay loop />
         )}
+        
+        {/* Etiqueta Premium */}
         <div className="absolute top-4 left-4">
           <span className="bg-cyan-500 text-black text-[10px] font-black px-2 py-1 rounded-full uppercase tracking-tighter shadow-lg shadow-cyan-500/20">Premium</span>
         </div>
+
+        {/* Mensaje de Vendido */}
+        {product.sold && (
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[1px] flex items-center justify-center z-10 animate-fade-in pointer-events-none">
+            <span 
+              className="text-white text-4xl md:text-5xl font-black italic transform -rotate-[15deg] drop-shadow-[0_5px_15px_rgba(0,0,0,0.9)] select-none uppercase tracking-tighter"
+            >
+              Vendido
+            </span>
+          </div>
+        )}
       </div>
       
       <div className="p-5 flex flex-col flex-1">
@@ -110,9 +124,10 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
           <div className="flex items-center justify-between pt-4 border-t border-white/5">
             <span className="text-xl font-black text-white">${Number(product.price).toLocaleString()}</span>
             <button 
-              onClick={() => onAdd(product, selectedSize)}
-              className="bg-white text-black text-[11px] font-black px-5 py-2.5 rounded-xl hover:bg-cyan-400 transition-all active:scale-95 uppercase tracking-widest"
-            >Agregar</button>
+              onClick={() => !product.sold && onAdd(product, selectedSize)}
+              disabled={product.sold}
+              className={`text-[11px] font-black px-5 py-2.5 rounded-xl transition-all active:scale-95 uppercase tracking-widest ${product.sold ? 'bg-zinc-800 text-zinc-600 cursor-not-allowed' : 'bg-white text-black hover:bg-cyan-400'}`}
+            >{product.sold ? 'Vendido' : 'Agregar'}</button>
           </div>
         </div>
       </div>
@@ -238,10 +253,11 @@ const ProductDetailModal = ({ product, onAdd, onClose }: { product: Product, onA
               <span className="text-4xl font-black text-white italic">${Number(product.price).toLocaleString()}</span>
             </div>
             <button 
-              onClick={() => { onAdd(product, selectedSize); onClose(); }}
-              className="flex-1 bg-white text-black py-5 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-cyan-500 transition-all shadow-lg shadow-white/10 active:scale-95"
+              onClick={() => { if(!product.sold) { onAdd(product, selectedSize); onClose(); } }}
+              disabled={product.sold}
+              className={`flex-1 py-5 rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg active:scale-95 ${product.sold ? 'bg-zinc-800 text-zinc-500 cursor-not-allowed' : 'bg-white text-black hover:bg-cyan-500 shadow-white/10'}`}
             >
-              Agregar al Carrito
+              {product.sold ? 'Producto Agotado' : 'Agregar al Carrito'}
             </button>
           </div>
         </div>
@@ -311,7 +327,8 @@ const App = () => {
               price: Number(p.price),
               mediaUrl: p.media_url,
               mediaType: p.media_type,
-              sizes: p.sizes || []
+              sizes: p.sizes || [],
+              sold: p.sold || false
             };
             if (!grouped[p.category_id]) grouped[p.category_id] = [];
             grouped[p.category_id].push(mapped);
@@ -364,11 +381,12 @@ const App = () => {
       price: prod.price,
       media_url: prod.mediaUrl,
       media_type: prod.mediaType,
-      sizes: prod.sizes
+      sizes: prod.sizes,
+      sold: false
     };
     const { error } = await supabase.from('products').insert([dbProd]);
     if (!error) {
-      const mappedProd: Product = { ...prod, id: dbProd.id, category_id: catId };
+      const mappedProd: Product = { ...prod, id: dbProd.id, category_id: catId, sold: false };
       setProducts(prev => ({ ...prev, [catId]: [...(prev[catId] || []), mappedProd] }));
     }
   };
@@ -380,10 +398,29 @@ const App = () => {
       price: prod.price,
       media_url: prod.mediaUrl,
       media_type: prod.mediaType,
-      sizes: prod.sizes
+      sizes: prod.sizes,
+      sold: prod.sold
     }).eq('id', prod.id);
     if (!error) {
       setProducts(prev => ({ ...prev, [catId]: prev[catId].map(p => p.id === prod.id ? prod : p) }));
+    }
+  };
+
+  const syncToggleSold = async (catId: string, prodId: string, currentStatus: boolean) => {
+    const newStatus = !currentStatus;
+    
+    // Actualización optimista para feedback instantáneo
+    setProducts(prev => ({
+      ...prev,
+      [catId]: prev[catId].map(p => p.id === prodId ? { ...p, sold: newStatus } : p)
+    }));
+
+    const { error } = await supabase.from('products').update({ sold: newStatus }).eq('id', prodId);
+    
+    if (error) {
+      console.error("Error al actualizar estado 'vendido' en Supabase:", error);
+      // Revertir si falla (opcional, pero mejor informar)
+      alert("Error al guardar en la nube. El cambio se mantiene solo en esta sesión. Asegúrate de que la tabla 'products' tenga la columna 'sold' (boolean).");
     }
   };
 
@@ -442,7 +479,16 @@ const App = () => {
         <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
           <div 
             className="flex items-center gap-4 cursor-pointer group"
-            onClick={() => { setActiveTab('all'); if (!isAdmin) setIsLoginOpen(true); }}
+            onClick={() => { 
+              setActiveTab('all'); 
+              if (isAdmin) {
+                setIsAdmin(false);
+                localStorage.removeItem('tcl_user');
+                setIsAdminPanelOpen(false);
+              } else {
+                setIsLoginOpen(true);
+              }
+            }}
           >
             <div className={`w-14 h-14 rounded-2xl flex items-center justify-center overflow-hidden shadow-2xl transition-all duration-500 ${settings.logo ? 'bg-transparent' : 'bg-zinc-900 border border-white/10 group-hover:border-cyan-500/50'}`}>
               {settings.logo ? (
@@ -558,6 +604,7 @@ const App = () => {
           syncAddProduct={syncAddProduct}
           syncUpdateProduct={syncUpdateProduct}
           syncRemoveProduct={syncRemoveProduct}
+          syncToggleSold={syncToggleSold}
           syncUpdateSettings={async (s: SiteSettings) => {
              try {
                // Guardar en localStorage inmediatamente para feedback instantáneo
@@ -610,7 +657,7 @@ const AdminPanel = ({ onClose, categories, products, settings, ...sync }: any) =
         </div>
         <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
            {tab === 'cats' && <AdminCats categories={categories} onAdd={sync.syncAddCategory} onUpdate={sync.syncUpdateCategory} onRemove={sync.syncRemoveCategory} />}
-           {tab === 'prods' && <AdminProds categories={categories} products={products} onAdd={sync.syncAddProduct} onUpdate={sync.syncUpdateProduct} onRemove={sync.syncRemoveProduct} />}
+           {tab === 'prods' && <AdminProds categories={categories} products={products} onAdd={sync.syncAddProduct} onUpdate={sync.syncUpdateProduct} onRemove={sync.syncRemoveProduct} onToggleSold={sync.syncToggleSold} />}
            {tab === 'config' && <AdminSettings settings={settings} onUpdate={sync.syncUpdateSettings} />}
         </div>
       </div>
@@ -654,16 +701,30 @@ const AdminCats = ({ categories, onAdd, onUpdate, onRemove }: any) => {
   );
 };
 
-const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove }: any) => {
+const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove, onToggleSold }: any) => {
   const [selectedCat, setSelectedCat] = useState('');
   const [editing, setEditing] = useState<Product | null>(null);
-  const [form, setForm] = useState({ name: '', description: '', price: 0, mediaUrl: '', mediaType: 'image' as 'image'|'video', sizes: ['Única'] });
+  const [form, setForm] = useState({ name: '', description: '', price: 0, mediaUrl: '', mediaType: 'image' as 'image'|'video', sizes: ['Única'], sold: false });
+
+  useEffect(() => {
+    if (editing) {
+      setForm({
+        name: editing.name,
+        description: editing.description,
+        price: editing.price,
+        mediaUrl: editing.mediaUrl,
+        mediaType: editing.mediaType,
+        sizes: editing.sizes,
+        sold: editing.sold || false
+      });
+    }
+  }, [editing]);
 
   const handleSubmit = () => {
     if (!selectedCat) return alert("Selecciona categoría");
     if (editing) { onUpdate(selectedCat, { ...editing, ...form }); setEditing(null); }
     else { onAdd(selectedCat, form); }
-    setForm({ name: '', description: '', price: 0, mediaUrl: '', mediaType: 'image', sizes: ['Única'] });
+    setForm({ name: '', description: '', price: 0, mediaUrl: '', mediaType: 'image', sizes: ['Única'], sold: false });
   };
 
   return (
@@ -679,6 +740,18 @@ const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove }: any) =>
           <input value={form.name} onChange={e => setForm({...form, name: e.target.value})} className="w-full bg-black border border-white/10 p-3 rounded-xl text-white text-sm" placeholder="Nombre" />
           <input type="number" value={form.price} onChange={e => setForm({...form, price: Number(e.target.value)})} className="w-full bg-black border border-white/10 p-3 rounded-xl text-white text-sm" placeholder="Precio" />
           <textarea value={form.description} onChange={e => setForm({...form, description: e.target.value})} className="w-full bg-black border border-white/10 p-3 rounded-xl text-white text-sm h-20" placeholder="Descripción" />
+          
+          <div className="flex items-center gap-3 p-3 bg-black/40 rounded-xl border border-white/5">
+            <input 
+              type="checkbox" 
+              id="sold-checkbox"
+              checked={form.sold} 
+              onChange={e => setForm({...form, sold: e.target.checked})}
+              className="w-5 h-5 rounded bg-zinc-800 border-zinc-700 text-cyan-500 focus:ring-cyan-500"
+            />
+            <label htmlFor="sold-checkbox" className="text-sm font-bold text-zinc-300 cursor-pointer">Marcar como Vendido</label>
+          </div>
+
           <input type="file" onChange={async e => { 
             if(e.target.files?.[0]) {
               const file = e.target.files[0];
@@ -692,11 +765,21 @@ const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove }: any) =>
       {selectedCat && products[selectedCat]?.map((p: Product) => (
         <div key={p.id} className="flex items-center justify-between p-4 bg-zinc-900/50 border border-white/5 rounded-2xl group">
            <div className="flex items-center gap-3">
-             <img src={p.mediaUrl} className="w-10 h-10 object-contain bg-black/40 rounded-lg" />
+             <div className="relative">
+               <img src={p.mediaUrl} className="w-10 h-10 object-contain bg-black/40 rounded-lg" />
+               {p.sold && <div className="absolute inset-0 bg-red-500/40 rounded-lg flex items-center justify-center"><i className="fas fa-check text-[10px] text-white"></i></div>}
+             </div>
              <span className="text-xs font-bold">{p.name}</span>
            </div>
            <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-             <button onClick={() => { setEditing(p); setForm({name:p.name, description:p.description, price:p.price, mediaUrl:p.mediaUrl, mediaType:p.mediaType, sizes:p.sizes}) }} className="text-cyan-500 p-2"><i className="fas fa-edit"></i></button>
+             <button 
+               onClick={() => onToggleSold(selectedCat, p.id, p.sold || false)} 
+               className={`p-2 transition-colors ${p.sold ? 'text-green-500' : 'text-zinc-600 hover:text-green-500'}`}
+               title={p.sold ? "Marcar como Disponible" : "Marcar como Vendido"}
+             >
+               <i className="fas fa-check-circle text-lg"></i>
+             </button>
+             <button onClick={() => { setEditing(p); setForm({name:p.name, description:p.description, price:p.price, mediaUrl:p.mediaUrl, mediaType:p.mediaType, sizes:p.sizes, sold: p.sold || false}) }} className="text-cyan-500 p-2"><i className="fas fa-edit"></i></button>
              <button onClick={() => onRemove(selectedCat, p.id)} className="text-red-500 p-2"><i className="fas fa-trash"></i></button>
            </div>
         </div>
