@@ -24,7 +24,7 @@ interface Product {
   name: string;
   description: string;
   price: number;
-  mediaUrl: string;
+  mediaUrls: string[];
   mediaType: 'image' | 'video';
   sizes: string[];
   sold?: boolean;
@@ -71,12 +71,12 @@ const ProductCard: React.FC<{ product: Product, onAdd: (p: Product, s: string) =
       >
         {product.mediaType === 'image' ? (
           <img 
-            src={product.mediaUrl} 
+            src={product.mediaUrls?.[0] || ''} 
             className="max-w-full max-h-full object-contain group-hover:scale-110 transition-transform duration-1000" 
             alt={product.name} 
           />
         ) : (
-          <video src={product.mediaUrl} className="max-w-full max-h-full object-contain" muted autoPlay loop />
+          <video src={product.mediaUrls?.[0] || ''} className="max-w-full max-h-full object-contain" muted autoPlay loop />
         )}
         
         {/* Etiqueta Premium */}
@@ -158,7 +158,7 @@ const CartSidebar = ({ cart, updateQuantity, checkout, onClose, primaryColor }: 
           ) : (
             cart.map((item: any) => (
               <div key={`${item.id}-${item.selectedSize}`} className="flex gap-4 p-4 bg-zinc-900/50 rounded-3xl border border-white/5">
-                <img src={item.mediaUrl} className="w-20 h-20 object-contain bg-black/40 rounded-2xl border border-white/5" alt="" />
+                <img src={item.mediaUrls?.[0] || ''} className="w-20 h-20 object-contain bg-black/40 rounded-2xl border border-white/5" alt="" />
                 <div className="flex-1">
                   <div className="flex justify-between items-start mb-1">
                     <h4 className="font-bold text-sm text-white uppercase italic">{item.name}</h4>
@@ -200,6 +200,7 @@ const CartSidebar = ({ cart, updateQuantity, checkout, onClose, primaryColor }: 
 
 const ProductDetailModal = ({ product, onAdd, onClose }: { product: Product, onAdd: (p: Product, s: string) => void, onClose: () => void }) => {
   const [selectedSize, setSelectedSize] = useState(product.sizes?.[0] || 'Única');
+  const [activeImage, setActiveImage] = useState(0);
 
   return (
     <div className="fixed inset-0 z-[150] bg-black/95 backdrop-blur-2xl flex items-center justify-center p-4 md:p-8 animate-fade-in">
@@ -211,11 +212,28 @@ const ProductDetailModal = ({ product, onAdd, onClose }: { product: Product, onA
           &times;
         </button>
 
-        <div className="w-full md:w-1/2 bg-black/40 flex items-center justify-center p-8 relative">
-          {product.mediaType === 'image' ? (
-            <img src={product.mediaUrl} className="max-w-full max-h-[60vh] object-contain drop-shadow-2xl" alt={product.name} />
-          ) : (
-            <video src={product.mediaUrl} className="max-w-full max-h-[60vh] object-contain" muted autoPlay loop />
+        <div className="w-full md:w-1/2 bg-black/40 flex flex-col items-center justify-center p-8 relative">
+          <div className="flex-1 flex items-center justify-center w-full">
+            {product.mediaType === 'image' ? (
+              <img src={product.mediaUrls?.[activeImage] || ''} className="max-w-full max-h-[50vh] object-contain drop-shadow-2xl animate-fade-in" alt={product.name} />
+            ) : (
+              <video src={product.mediaUrls?.[activeImage] || ''} className="max-w-full max-h-[50vh] object-contain" muted autoPlay loop />
+            )}
+          </div>
+          
+          {/* Galería de Miniaturas */}
+          {product.mediaUrls && product.mediaUrls.length > 1 && (
+            <div className="flex gap-3 mt-8">
+              {product.mediaUrls.map((url, idx) => (
+                <button 
+                  key={idx} 
+                  onClick={() => setActiveImage(idx)}
+                  className={`w-16 h-16 rounded-xl overflow-hidden border-2 transition-all ${activeImage === idx ? 'border-cyan-500 scale-110' : 'border-white/10 opacity-50 hover:opacity-100'}`}
+                >
+                  <img src={url} className="w-full h-full object-cover" alt="" />
+                </button>
+              ))}
+            </div>
           )}
         </div>
         
@@ -325,7 +343,7 @@ const App = () => {
               name: p.name,
               description: p.description,
               price: Number(p.price),
-              mediaUrl: p.media_url,
+              mediaUrls: p.media_urls || [p.media_url] || [],
               mediaType: p.media_type,
               sizes: p.sizes || [],
               sold: p.sold || false
@@ -379,7 +397,7 @@ const App = () => {
       name: prod.name,
       description: prod.description,
       price: prod.price,
-      media_url: prod.mediaUrl,
+      media_urls: prod.mediaUrls,
       media_type: prod.mediaType,
       sizes: prod.sizes,
       sold: false
@@ -396,7 +414,7 @@ const App = () => {
       name: prod.name,
       description: prod.description,
       price: prod.price,
-      media_url: prod.mediaUrl,
+      media_urls: prod.mediaUrls,
       media_type: prod.mediaType,
       sizes: prod.sizes,
       sold: prod.sold
@@ -555,11 +573,6 @@ const App = () => {
           <p className="text-lg md:text-xl text-zinc-300 font-medium max-w-2xl mx-auto drop-shadow-lg leading-relaxed mb-8">
             {activeTab === 'all' ? settings.heroDescription : categories.find(c => c.id === activeTab)?.description}
           </p>
-          {activeTab === 'all' && (
-            <div className="flex justify-center gap-4">
-               <button onClick={() => {document.getElementById('main-grid')?.scrollIntoView({behavior: 'smooth'})}} className="bg-cyan-500 text-black px-8 py-4 rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-cyan-400 transition-all">Explorar Catálogo</button>
-            </div>
-          )}
         </div>
       </section>
 
@@ -704,7 +717,7 @@ const AdminCats = ({ categories, onAdd, onUpdate, onRemove }: any) => {
 const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove, onToggleSold }: any) => {
   const [selectedCat, setSelectedCat] = useState('');
   const [editing, setEditing] = useState<Product | null>(null);
-  const [form, setForm] = useState({ name: '', description: '', price: 0, mediaUrl: '', mediaType: 'image' as 'image'|'video', sizes: ['Única'], sold: false });
+  const [form, setForm] = useState({ name: '', description: '', price: 0, mediaUrls: [] as string[], mediaType: 'image' as 'image'|'video', sizes: ['Única'], sold: false });
 
   useEffect(() => {
     if (editing) {
@@ -712,7 +725,7 @@ const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove, onToggleS
         name: editing.name,
         description: editing.description,
         price: editing.price,
-        mediaUrl: editing.mediaUrl,
+        mediaUrls: editing.mediaUrls || [],
         mediaType: editing.mediaType,
         sizes: editing.sizes,
         sold: editing.sold || false
@@ -722,9 +735,10 @@ const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove, onToggleS
 
   const handleSubmit = () => {
     if (!selectedCat) return alert("Selecciona categoría");
+    if (form.mediaUrls.length === 0) return alert("Sube al menos una imagen");
     if (editing) { onUpdate(selectedCat, { ...editing, ...form }); setEditing(null); }
     else { onAdd(selectedCat, form); }
-    setForm({ name: '', description: '', price: 0, mediaUrl: '', mediaType: 'image', sizes: ['Única'], sold: false });
+    setForm({ name: '', description: '', price: 0, mediaUrls: [], mediaType: 'image', sizes: ['Única'], sold: false });
   };
 
   return (
@@ -752,12 +766,43 @@ const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove, onToggleS
             <label htmlFor="sold-checkbox" className="text-sm font-bold text-zinc-300 cursor-pointer">Marcar como Vendido</label>
           </div>
 
-          <input type="file" onChange={async e => { 
-            if(e.target.files?.[0]) {
-              const file = e.target.files[0];
-              setForm({...form, mediaUrl: await fileToBase64(file), mediaType: file.type.startsWith('video') ? 'video' : 'image'});
-            }
-          }} className="text-xs text-zinc-500" />
+          <div className="space-y-4">
+            <label className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">Imágenes del Producto (Máx 3)</label>
+            <div className="grid grid-cols-3 gap-3">
+              {form.mediaUrls.map((url, idx) => (
+                <div key={idx} className="relative aspect-square bg-black rounded-xl border border-white/10 overflow-hidden group">
+                  <img src={url} className="w-full h-full object-cover" alt="" />
+                  <button 
+                    onClick={() => setForm({...form, mediaUrls: form.mediaUrls.filter((_, i) => i !== idx)})}
+                    className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                  >&times;</button>
+                </div>
+              ))}
+              {form.mediaUrls.length < 3 && (
+                <label className="aspect-square bg-black/40 border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-cyan-500/50 transition-colors">
+                  <i className="fas fa-plus text-zinc-600 mb-1"></i>
+                  <span className="text-[8px] font-bold text-zinc-600 uppercase">Subir</span>
+                  <input 
+                    type="file" 
+                    multiple 
+                    accept="image/*,video/*"
+                    onChange={async e => { 
+                      if(e.target.files) {
+                        const files = Array.from(e.target.files).slice(0, 3 - form.mediaUrls.length);
+                        const base64s = await Promise.all(files.map(f => fileToBase64(f)));
+                        setForm({
+                          ...form, 
+                          mediaUrls: [...form.mediaUrls, ...base64s],
+                          mediaType: files[0].type.startsWith('video') ? 'video' : 'image'
+                        });
+                      }
+                    }} 
+                    className="hidden" 
+                  />
+                </label>
+              )}
+            </div>
+          </div>
           <button onClick={handleSubmit} className="w-full bg-cyan-500 text-black py-3 rounded-xl font-black uppercase text-xs">{editing ? 'Guardar' : 'Añadir'}</button>
         </div>
       )}
@@ -766,7 +811,7 @@ const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove, onToggleS
         <div key={p.id} className="flex items-center justify-between p-4 bg-zinc-900/50 border border-white/5 rounded-2xl group">
            <div className="flex items-center gap-3">
              <div className="relative">
-               <img src={p.mediaUrl} className="w-10 h-10 object-contain bg-black/40 rounded-lg" />
+               <img src={p.mediaUrls?.[0] || ''} className="w-10 h-10 object-contain bg-black/40 rounded-lg" />
                {p.sold && <div className="absolute inset-0 bg-red-500/40 rounded-lg flex items-center justify-center"><i className="fas fa-check text-[10px] text-white"></i></div>}
              </div>
              <span className="text-xs font-bold">{p.name}</span>
@@ -779,7 +824,7 @@ const AdminProds = ({ categories, products, onAdd, onUpdate, onRemove, onToggleS
              >
                <i className="fas fa-check-circle text-lg"></i>
              </button>
-             <button onClick={() => { setEditing(p); setForm({name:p.name, description:p.description, price:p.price, mediaUrl:p.mediaUrl, mediaType:p.mediaType, sizes:p.sizes, sold: p.sold || false}) }} className="text-cyan-500 p-2"><i className="fas fa-edit"></i></button>
+             <button onClick={() => { setEditing(p); }} className="text-cyan-500 p-2"><i className="fas fa-edit"></i></button>
              <button onClick={() => onRemove(selectedCat, p.id)} className="text-red-500 p-2"><i className="fas fa-trash"></i></button>
            </div>
         </div>
