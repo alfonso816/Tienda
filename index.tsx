@@ -4,8 +4,29 @@ import { createRoot } from 'react-dom/client';
 import { createClient } from '@supabase/supabase-js';
 
 // --- Configuración Supabase ---
-const SUPABASE_URL = 'https://dnjtsfymqmhupallnkvi.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuanRzZnltcW1odXBhbGxua3ZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4OTUwNTQsImV4cCI6MjA4MjQ3MTA1NH0.0FKal89pt4a1GNN1GGZ1C1ztzCTY-ykErkTzvt8oNUA';
+const DEFAULT_URL = 'https://dnjtsfymqmhupallnkvi.supabase.co';
+const DEFAULT_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRuanRzZnltcW1odXBhbGxua3ZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4OTUwNTQsImV4cCI6MjA4MjQ3MTA1NH0.0FKal89pt4a1GNN1GGZ1C1ztzCTY-ykErkTzvt8oNUA';
+
+const getValidSupabaseUrl = () => {
+  try {
+    const envUrl = import.meta.env.VITE_SUPABASE_URL;
+    if (envUrl && envUrl.startsWith('http')) {
+      new URL(envUrl); // Test valid construction
+      return envUrl;
+    }
+  } catch (e) {}
+  return DEFAULT_URL;
+};
+
+const getValidSupabaseKey = () => {
+  const envKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+  if (envKey && envKey.length > 20) return envKey;
+  return DEFAULT_KEY;
+};
+
+const SUPABASE_URL = getValidSupabaseUrl();
+const SUPABASE_ANON_KEY = getValidSupabaseKey();
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // --- Interfaces ---
@@ -308,6 +329,7 @@ const App = () => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isDbConnected, setIsDbConnected] = useState<boolean | null>(null); // null = unknown, true = ok, false = error
 
   useEffect(() => {
     const safetyTimeout = setTimeout(() => setIsLoading(false), 5000);
@@ -330,10 +352,15 @@ const App = () => {
           localStorage.setItem('site_settings_backup', JSON.stringify(setRes.data));
         }
 
-        const { data: catRes } = await supabase.from('categories').select('*').order('order', { ascending: true });
-        if (catRes) setCategories(catRes);
+        const { data: catRes, error: catErr } = await supabase.from('categories').select('*').order('order', { ascending: true });
+        if (catErr) throw catErr;
+        if (catRes) {
+          setCategories(catRes);
+          setIsDbConnected(true);
+        }
 
-        const { data: prodRes } = await supabase.from('products').select('*');
+        const { data: prodRes, error: prodErr } = await supabase.from('products').select('*');
+        if (prodErr) throw prodErr;
         if (prodRes) {
           const grouped: Record<string, Product[]> = {};
           prodRes.forEach((p: any) => {
@@ -354,7 +381,8 @@ const App = () => {
           setProducts(grouped);
         }
       } catch (err) { 
-        console.error(err); 
+        console.error("Error connecting to Supabase:", err);
+        setIsDbConnected(false);
       } finally { 
         clearTimeout(safetyTimeout);
         setIsLoading(false); 
@@ -557,6 +585,17 @@ const App = () => {
         </div>
       </header>
 
+      {/* Database Connection Warning */}
+      {isDbConnected === false && (
+        <div className="bg-red-500/20 backdrop-blur-md border-b border-red-500/50 p-3 text-center animate-fade-in relative z-40">
+          <p className="text-red-400 text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-3">
+            <i className="fas fa-exclamation-triangle"></i>
+            Error de conexión con la base de datos (Supabase)
+            <span className="hidden md:inline opacity-60 ml-2">Los cambios no se guardarán permanentemente.</span>
+          </p>
+        </div>
+      )}
+
       {/* Hero */}
       <section className="relative h-[60vh] overflow-hidden flex items-center justify-center">
         <div 
@@ -607,6 +646,7 @@ const App = () => {
       {isLoginOpen && <LoginModal onLogin={(p: string) => { if(p==='Marioboss1964'){ setIsAdmin(true); localStorage.setItem('tcl_user', 'admin'); setIsLoginOpen(false); }else{alert('Contraseña Incorrecta')} }} onClose={() => setIsLoginOpen(false)} />}
       {isAdminPanelOpen && (
         <AdminPanel 
+          isDbConnected={isDbConnected}
           onClose={() => setIsAdminPanelOpen(false)} 
           categories={categories}
           products={products}
@@ -648,13 +688,21 @@ const App = () => {
 
 // --- Admin Components ---
 
-const AdminPanel = ({ onClose, categories, products, settings, ...sync }: any) => {
+const AdminPanel = ({ onClose, categories, products, settings, isDbConnected, ...sync }: any) => {
   const [tab, setTab] = useState('cats');
   return (
     <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex justify-end">
       <div className="w-full max-w-xl bg-zinc-950 h-full flex flex-col border-l border-white/10 shadow-2xl animate-slide-in">
         <div className="p-8 bg-zinc-900 border-b border-white/5 flex justify-between items-center">
-          <h2 className="text-xl font-black italic uppercase tracking-tighter text-white">System Admin</h2>
+          <div className="flex flex-col">
+            <h2 className="text-xl font-black italic uppercase tracking-tighter text-white">System Admin</h2>
+            <div className="flex items-center gap-2 mt-1">
+              <div className={`w-2 h-2 rounded-full ${isDbConnected ? 'bg-green-500' : 'bg-red-500'} shadow-[0_0_8px_${isDbConnected ? '#22c55e' : '#ef4444'}]`}></div>
+              <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
+                {isDbConnected ? 'Cloud Online' : 'Cloud Error (Offline Mode)'}
+              </span>
+            </div>
+          </div>
           <button onClick={onClose} className="text-zinc-500 hover:text-white text-3xl">&times;</button>
         </div>
         <div className="flex bg-black/40 border-b border-white/5">
