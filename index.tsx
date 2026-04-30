@@ -348,12 +348,14 @@ const App = () => {
         const { data: setRes } = await supabase.from('settings').select('data').eq('id', 'site_config').maybeSingle();
         if (setRes && setRes.data) {
           let updatedData = { ...setRes.data };
-          // Auto-fix WhatsApp if it's the old one or incorrectly formatted
-          const oldNumbers = ['+573196968646', '3196968646'];
+          const oldNumbers = ['+573196968646', '3196968646', '3164406063'];
           const currentWhatsapp = updatedData.whatsapp?.replace(/\s/g, '');
-          if (oldNumbers.includes(currentWhatsapp) || currentWhatsapp === '3164406063') {
+          if (oldNumbers.includes(currentWhatsapp)) {
             updatedData.whatsapp = '+573164406063';
-            await supabase.from('settings').upsert({ id: 'site_config', data: updatedData });
+            // Intentar actualizar silenciosamente, si falla usamos el local
+            supabase.from('settings').upsert({ id: 'site_config', data: updatedData }).then(({ error }) => {
+              if (error) console.warn("Aviso: No se pudo actualizar el número en la nube, usando local.");
+            });
           }
           setSettings(prev => ({...prev, ...updatedData}));
           // Actualizar backup local con datos reales de la nube
@@ -532,10 +534,12 @@ const App = () => {
     const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     msg += `🏁 *TOTAL: $${total.toLocaleString()}*`;
     let cleanPhone = settings.whatsapp.replace(/\+/g, '').replace(/\s/g, '');
-    if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
+    // Asegurar prefijo internacional para Colombia si solo hay 10 dígitos
+    if (cleanPhone.length === 10) {
       cleanPhone = '57' + cleanPhone;
     }
-    window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+    const whatsappUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   if (isLoading) {
