@@ -314,7 +314,7 @@ const App = () => {
     name: 'COPASYSONIDO',
     title: 'Solo Copas y Sonido - Tienda Oficial',
     primaryColor: '#00f2ff',
-    whatsapp: '+573196968646',
+    whatsapp: '+573164406063',
     socialLink: 'https://instagram.com',
     logo: '',
     heroImage: 'https://images.unsplash.com/photo-1511994298241-608e28f14fde?w=1600',
@@ -347,9 +347,17 @@ const App = () => {
 
         const { data: setRes } = await supabase.from('settings').select('data').eq('id', 'site_config').maybeSingle();
         if (setRes && setRes.data) {
-          setSettings(prev => ({...prev, ...setRes.data}));
+          let updatedData = { ...setRes.data };
+          // Auto-fix WhatsApp if it's the old one
+          const oldNumbers = ['+573196968646', '3196968646', '+573196968646', '3196968646'];
+          const currentWhatsapp = updatedData.whatsapp?.replace(/\s/g, '');
+          if (oldNumbers.includes(currentWhatsapp)) {
+            updatedData.whatsapp = '+573164406063';
+            await supabase.from('settings').upsert({ id: 'site_config', data: updatedData });
+          }
+          setSettings(prev => ({...prev, ...updatedData}));
           // Actualizar backup local con datos reales de la nube
-          localStorage.setItem('site_settings_backup', JSON.stringify(setRes.data));
+          localStorage.setItem('site_settings_backup', JSON.stringify(updatedData));
         }
 
         const { data: catRes, error: catErr } = await supabase.from('categories').select('*').order('order', { ascending: true });
@@ -401,6 +409,9 @@ const App = () => {
     if (!error) {
       setCategories(prev => [...prev, catData]);
       setProducts(prev => ({ ...prev, [id]: [] }));
+    } else {
+      console.error("Error adding category:", error);
+      alert(`Error al añadir categoría: ${error.message}`);
     }
   };
 
@@ -408,6 +419,9 @@ const App = () => {
     const { error } = await supabase.from('categories').update(cat).eq('id', cat.id);
     if (!error) {
       setCategories(prev => prev.map(c => c.id === cat.id ? cat : c));
+    } else {
+      console.error("Error updating category:", error);
+      alert(`Error al actualizar categoría: ${error.message}`);
     }
   };
 
@@ -415,6 +429,9 @@ const App = () => {
     const { error } = await supabase.from('categories').delete().eq('id', id);
     if (!error) {
       setCategories(prev => prev.filter(c => c.id !== id));
+    } else {
+      console.error("Error removing category:", error);
+      alert(`Error al eliminar categoría: ${error.message}`);
     }
   };
 
@@ -434,6 +451,9 @@ const App = () => {
     if (!error) {
       const mappedProd: Product = { ...prod, id: dbProd.id, category_id: catId, sold: false };
       setProducts(prev => ({ ...prev, [catId]: [...(prev[catId] || []), mappedProd] }));
+    } else {
+      console.error("Error inserting product:", error);
+      alert(`Error al añadir producto: ${error.message}. Asegúrese de que la tabla 'products' tenga la columna 'media_urls' (TEXT[]) y 'sold' (BOOLEAN).`);
     }
   };
 
@@ -449,6 +469,9 @@ const App = () => {
     }).eq('id', prod.id);
     if (!error) {
       setProducts(prev => ({ ...prev, [catId]: prev[catId].map(p => p.id === prod.id ? prod : p) }));
+    } else {
+      console.error("Error updating product:", error);
+      alert(`Error al actualizar producto: ${error.message}.`);
     }
   };
 
@@ -465,8 +488,7 @@ const App = () => {
     
     if (error) {
       console.error("Error al actualizar estado 'vendido' en Supabase:", error);
-      // Revertir si falla (opcional, pero mejor informar)
-      alert("Error al guardar en la nube. El cambio se mantiene solo en esta sesión. Asegúrate de que la tabla 'products' tenga la columna 'sold' (boolean).");
+      alert(`Error al guardar en la nube: ${error.message}`);
     }
   };
 
@@ -474,6 +496,9 @@ const App = () => {
     const { error } = await supabase.from('products').delete().eq('id', prodId);
     if (!error) {
       setProducts(prev => ({ ...prev, [catId]: prev[catId].filter(p => p.id !== prodId) }));
+    } else {
+      console.error("Error removing product:", error);
+      alert(`Error al eliminar producto: ${error.message}`);
     }
   };
 
