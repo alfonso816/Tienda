@@ -348,10 +348,10 @@ const App = () => {
         const { data: setRes } = await supabase.from('settings').select('data').eq('id', 'site_config').maybeSingle();
         if (setRes && setRes.data) {
           let updatedData = { ...setRes.data };
-          // Auto-fix WhatsApp if it's the old one
-          const oldNumbers = ['+573196968646', '3196968646', '+573196968646', '3196968646'];
+          // Auto-fix WhatsApp if it's the old one or incorrectly formatted
+          const oldNumbers = ['+573196968646', '3196968646'];
           const currentWhatsapp = updatedData.whatsapp?.replace(/\s/g, '');
-          if (oldNumbers.includes(currentWhatsapp)) {
+          if (oldNumbers.includes(currentWhatsapp) || currentWhatsapp === '3164406063') {
             updatedData.whatsapp = '+573164406063';
             await supabase.from('settings').upsert({ id: 'site_config', data: updatedData });
           }
@@ -531,7 +531,11 @@ const App = () => {
     });
     const total = cart.reduce((acc, item) => acc + (item.price * item.quantity), 0);
     msg += `🏁 *TOTAL: $${total.toLocaleString()}*`;
-    window.location.href = `https://wa.me/${settings.whatsapp.replace(/\+/g, '').replace(/\s/g, '')}?text=${encodeURIComponent(msg)}`;
+    let cleanPhone = settings.whatsapp.replace(/\+/g, '').replace(/\s/g, '');
+    if (cleanPhone.length === 10 && cleanPhone.startsWith('3')) {
+      cleanPhone = '57' + cleanPhone;
+    }
+    window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
   };
 
   if (isLoading) {
